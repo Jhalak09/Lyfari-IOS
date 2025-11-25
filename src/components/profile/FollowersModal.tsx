@@ -50,7 +50,7 @@ export default function FollowersModal({
   const [searchQuery, setSearchQuery] = useState('');
 const [users, setUsers] = useState<User[]>([]);
 const [actionLoading, setActionLoading] = useState<Record<number, boolean>>({});
-    const navigation = useNavigation();
+    const navigation = useNavigation<any>();
   const isOwnProfile = userId === currentUserId;
 
 
@@ -187,8 +187,8 @@ const handleRemove = async (targetUserId: number) => {
 
 
   const handleProfileClick = (targetUserId: number) => {
-    // Equivalent to router.push(`/lyfari/real/profile/${targetUserId}`)
-    navigation.navigate('RealProfile' as never, { userId: targetUserId } as never);
+    // Same behavior as: router.push(`/lyfari/real/profile/${targetUserId}`)
+    navigation.navigate('RealProfile', { userId: targetUserId });
     onClose();
   };
 
