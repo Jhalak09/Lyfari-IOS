@@ -1,3 +1,5 @@
+// src/navigation/AppNavigator.tsx
+
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -11,11 +13,28 @@ import ProfileSetupScreen from '../screens/ProfileSetupScreen';
 import SoulTestScreen from '../screens/SoultestScreen';
 import SoulTestScreenAI from '../screens/SoulTestScreenAI';
 import LyfariVirtualDashboard from '../screens/LyfariVirtualDashboard';
+import ProfilePage from '../screens/ProfilePage'; // ✅ Import ProfilePage
 
 // Placeholder screens - you'll create these later
 const LyfariMainScreen = () => null;
 
-const Stack = createNativeStackNavigator();
+// ✅ Define all route parameter types
+export type RootStackParamList = {
+  Home: undefined;
+  SignIn: undefined;
+  SignUp: undefined;
+  RedirectHandler: undefined;
+  VerifyEmail: { email?: string };
+  ProfileSetup: undefined;
+  SoulTest: undefined;
+  LyfariMain: undefined;
+  Lyfari: undefined;
+  SoulTestAI: undefined;
+  LyfariVirtualDashboard: undefined;
+  Profile: { userId: string }; // ✅ Dynamic profile route
+};
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function AppNavigator() {
   return (
@@ -24,6 +43,7 @@ export default function AppNavigator() {
         initialRouteName="Home"
         screenOptions={{
           headerShown: false,
+          contentStyle: { backgroundColor: '#000000' },
         }}
       >
         <Stack.Screen name="Home" component={HomeScreen} />
@@ -37,7 +57,16 @@ export default function AppNavigator() {
         <Stack.Screen name="Lyfari" component={LyfariMainScreen} />
         <Stack.Screen name="SoulTestAI" component={SoulTestScreenAI} />
         <Stack.Screen name="LyfariVirtualDashboard" component={LyfariVirtualDashboard} />
-
+        
+        {/* ✅ Dynamic Profile Route */}
+        <Stack.Screen 
+          name="Profile" 
+          component={ProfilePage}
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
