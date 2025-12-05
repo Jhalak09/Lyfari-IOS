@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import Config from 'react-native-config';
@@ -137,6 +138,8 @@ const SoulTestScreenAI: React.FC = () => {
   const isMinimumReached = wordCount >= 100;
 
   return (
+        <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+    
     <View style={styles.root}>
       {/* Animated background approximation */}
       <View style={styles.backgroundBlob1} />
@@ -310,6 +313,7 @@ const SoulTestScreenAI: React.FC = () => {
 
       <Toast />
     </View>
+    </SafeAreaView>
   );
 };
 

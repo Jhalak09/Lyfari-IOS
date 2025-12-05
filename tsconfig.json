@@ -1,6 +1,6 @@
 {
   "extends": "@react-native/typescript-config",
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": ["**/*.ts", "**/*.tsx", "src/screens/VerifyEmailScreen.js"],
   "exclude": ["**/node_modules", "**/Pods"],
   "compilerOptions": {
     "types": ["node", "react", "react-native"]

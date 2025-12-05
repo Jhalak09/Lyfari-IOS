@@ -284,14 +284,14 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({
               No recent activity yet. Start connecting with your matches!
             </Text>
           </View>
-        ) : (
+        ) : ( 
           <FlatList
             data={combinedActivityFeed}
             renderItem={renderNotification}
             keyExtractor={item => item.id}
-            scrollEnabled={true}
+            scrollEnabled={false} // ✅ Let parent handle scrolling
             contentContainerStyle={styles.listContainer}
-            showsVerticalScrollIndicator={true}
+            showsVerticalScrollIndicator={false}
           />
         )}
       </View>

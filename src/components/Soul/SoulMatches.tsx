@@ -170,12 +170,13 @@ const SoulMatches: React.FC<SoulMatchesProps> = ({
       <View style={styles.contentCard}>
         <Text style={styles.headerTitle}>Soulful Matches</Text>
         <FlatList
-          data={matches}
-          renderItem={renderMatch}
-          keyExtractor={item => item.user.id.toString()}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={true}
-        />
+            data={matches}
+            renderItem={renderMatch}
+            keyExtractor={item => item.user.id.toString()}
+            contentContainerStyle={styles.listContainer}
+            scrollEnabled={false} // ✅ Let parent handle scrolling
+            showsVerticalScrollIndicator={false}
+          />
       </View>
     </View>
   );

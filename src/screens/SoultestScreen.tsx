@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Config from 'react-native-config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -52,47 +53,47 @@ const defaultEmotionColors: Record<string, any> = {
 
 const defaultEmotionData: Record<string, EmotionInfo> = {
   joy: {
-    icon: require('../../assets/icon1/joy.png'),
+    icon: require('../assets/icon1/joy.svg'),
     particles: '🌟',
     desc: 'Radiating joy and lightness',
   },
   sadness: {
-    icon: require('../../assets/icon1/sadness.png'),
+    icon: require('../assets/icon1/sadness.svg'),
     particles: '🌧️',
     desc: 'Feeling deeply and tenderly',
   },
   fear: {
-    icon: require('../../assets/icon1/fear.png'),
+    icon: require('../assets/icon1/fear.svg'),
     particles: '⛈️',
     desc: 'Navigating uncertainty',
   },
   anger: {
-    icon: require('../../assets/icon1/anger.png'),
+    icon: require('../assets/icon1/anger.svg'),
     particles: '💥',
     desc: 'Processing intense energy',
   },
   disgust: {
-    icon: require('../../assets/icon1/disgust1.png'),
+    icon: require('../assets/icon1/disgust1.svg'),
     particles: '🌿',
     desc: 'Maintaining strong boundaries',
   },
   anxiety: {
-    icon: require('../../assets/icon1/anxiety.png'),
+    icon: require('../assets/icon1/anxiety.svg'),
     particles: '🌀',
     desc: 'Working through overwhelming thoughts',
   },
   envy: {
-    icon: require('../../assets/icon1/envy.png'),
+    icon: require('../assets/icon1/envy.svg'),
     particles: '💚',
     desc: 'Comparing and seeking growth',
   },
   embarrassment: {
-    icon: require('../../assets/icon1/embarrassment.png'),
+    icon: require('../assets/icon1/embarrassment.svg'),
     particles: '💫',
     desc: 'Self-reflecting with sensitivity',
   },
   ennui: {
-    icon: require('../../assets/icon1/ennui.png'),
+    icon: require('../assets/icon1/ennui.svg'),
     particles: '☁️',
     desc: 'Seeking deeper meaning and purpose',
   },
@@ -204,6 +205,8 @@ const SoulTestPage: React.FC = () => {
   };
 
   return (
+        <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+    
     <View style={[styles.container, emotionColors[currentEmotionForQuestion]]}>
       {showParticles && (
         <View style={styles.particlesContainer}>
@@ -379,6 +382,7 @@ const SoulTestPage: React.FC = () => {
 
       <Toast />
     </View>
+    </SafeAreaView>
   );
 };
 
@@ -386,6 +390,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 12, paddingTop: 12 },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 24 },
+  root: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
   particlesContainer: {
     position: 'absolute',
     left: 0,

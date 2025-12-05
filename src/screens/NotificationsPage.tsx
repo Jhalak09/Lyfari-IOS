@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from 'react-native-config';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Navbar from '../components/layout/Navbar';
 import {NotificationItem} from '../components/Notifications/NotificationItem';
 import { useNotificationsContext } from '../contexts/NotificationsContext';
@@ -134,11 +135,16 @@ const NotificationsPage: React.FC = () => {
   ).length;
 
   return (
-    <View style={styles.root}>
-      <View style={styles.navWrapper}>
-        <Navbar />
-      </View>
-
+    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+          {/* Navbar - Fixed at top */}
+          <View style={styles.navWrapper}>
+            <Navbar
+              menuColorClass="bg-black/100"
+              highlightColorClass="bg-indigo-600 text-white"
+              activeHref="/Explore"
+              compact
+            />
+          </View>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
@@ -220,14 +226,16 @@ const NotificationsPage: React.FC = () => {
           )}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000000' },
-navWrapper: { position: 'absolute', top: 24, left: 0, right: 0, zIndex: 50 },
-  container: { paddingHorizontal: 16, paddingTop: 12 },
+navWrapper: {
+    backgroundColor: '#000000', // ✅ Background for sticky header
+    paddingVertical: 8,
+  },  container: { paddingHorizontal: 16, paddingTop: 12 },
   content: { paddingBottom: 40 },
 
   headerRow: {

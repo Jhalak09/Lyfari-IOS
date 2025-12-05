@@ -4,6 +4,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from 'react-native-config';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function VerifyEmailScreen() {
   const [loading, setLoading] = useState(true);
@@ -96,6 +97,8 @@ export default function VerifyEmailScreen() {
   }
 
   return (
+        <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+    
     <View style={styles.container}>
       {success ? (
         <>
@@ -117,6 +120,7 @@ export default function VerifyEmailScreen() {
         </>
       )}
     </View>
+    </SafeAreaView>
   );
 }
 
@@ -127,6 +131,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+  },
+  root: {
+    flex: 1,
+    backgroundColor: '#000000',
   },
   spinner: {
     marginBottom: 16,

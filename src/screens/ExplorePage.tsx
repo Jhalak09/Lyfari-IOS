@@ -11,6 +11,7 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from 'react-native-config';
 import Navbar from '../components/layout/Navbar';
@@ -222,11 +223,16 @@ const ExplorePage: React.FC = () => {
   };
 
   return (
-    <View style={styles.root}>
-      {/* Navbar */}
-      <View style={styles.navWrapper}>
-        <Navbar />
-      </View>
+    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+          {/* Navbar - Fixed at top */}
+          <View style={styles.navWrapper}>
+            <Navbar
+              menuColorClass="bg-black/100"
+              highlightColorClass="bg-indigo-600 text-white"
+              activeHref="/Explore"
+              compact
+            />
+          </View>
 
       <View style={styles.container}>
         {/* Header */}
@@ -285,7 +291,7 @@ const ExplorePage: React.FC = () => {
           <ActivityIndicator size="large" color="#ffffff" />
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -295,8 +301,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   navWrapper: {
-    paddingTop: 24,
-    zIndex: 50,
+    backgroundColor: '#000000ff', // ✅ Background for sticky header
+    paddingVertical: 8,
   },
   container: {
     flex: 1,

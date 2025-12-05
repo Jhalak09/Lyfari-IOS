@@ -1,45 +1,47 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import React from 'react';
+import { StatusBar } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
+import AppNavigator from './src/navigation/AppNavigator';
+import { AuthProvider } from './src/auth/AuthContext';
+import { NotificationsProvider } from './src/contexts/NotificationsContext';
+import Config from 'react-native-config';
+import { usePushNotifications } from './src/hooks/usePushNotifications';
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+console.log('🚀 App.tsx loaded');
+console.log('✅ NotificationsProvider:', NotificationsProvider);
+console.log('✅ AuthProvider:', AuthProvider);
+console.log('✅ AppNavigator:', AppNavigator);
+console.log('🔧 Backend URL:', Config.NEXT_PUBLIC_BACKEND_URL);
+console.log('🔧 Auth URL:', Config.AUTH_URL);
 
 function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+  usePushNotifications();
 
+  console.log('🎨 App component rendering');
+  
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor="#000000" 
+        translucent 
+      />
+      
+      {/* Notifications Context - Must be outermost for WebSocket */}
+      <NotificationsProvider>
+        {/* Auth Context - Handles authentication */}
+        <AuthProvider>
+          {/* Navigation Stack - All screens */}
+          <AppNavigator />
+
+          
+          {/* Toast Notifications - Global */}
+          <Toast />
+        </AuthProvider>
+      </NotificationsProvider>
     </SafeAreaProvider>
   );
 }
-
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
-
-  return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
 
 export default App;

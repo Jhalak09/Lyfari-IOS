@@ -1,6 +1,6 @@
-// src/screens/ProfilePage.tsx (React Native)
+// src/screens/ProfilePage.tsx (React Native - Exact Match to Next.js)
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,18 +9,18 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
-import { useRoute, RouteProp,  } from '@react-navigation/native';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from 'react-native-config';
 import Navbar from '../components/layout/Navbar';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProfileHeader } from '../components/Profile/ProfileHeader';
-import  ProfilePostsGrid  from '../components/Posts/ProfilePostsGrid';
+import ProfilePostsGrid from '../components/Posts/ProfilePostsGrid';
 import { PostDetail } from '../components/Posts/PostDetail';
 import { EditProfileModal } from '../components/Profile/EditProfileModal';
 import { UploadPostModal } from '../components/Profile/UploadPostModal';
 import { Post } from '../types/post.types';
-import { RootStackParamList } from '../navigation/AppNavigator'; // ✅ Import from navigator
-
+import { RootStackParamList } from '../navigation/AppNavigator';
 
 type Profile = {
   id: string | number;
@@ -37,7 +37,6 @@ type Profile = {
   stats: { posts: number; followers: number; following: number };
 };
 
-
 type ProfileRoute = RouteProp<RootStackParamList, 'Profile'>;
 
 const ProfilePage: React.FC = () => {
@@ -49,27 +48,32 @@ const ProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selfUserId, setSelfUserId] = useState<string | null>(null);
 
+  // Modal states
   const [editOpen, setEditOpen] = useState(false);
   const [editData, setEditData] = useState<any>(null);
   const [editSaving, setEditSaving] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
+  // ✅ Track follow status
   const [followStatus, setFollowStatus] = useState({
     isFollowing: false,
     requestPending: false,
   });
 
+  // ✅ Calculate viewing permissions
   const isSelf =
     !!selfUserId &&
     !!profile &&
     String(selfUserId) === String(profile.userId);
+
   const canViewPosts =
     isSelf ||
     profile?.accountType === 'PUBLIC' ||
     (profile?.accountType === 'PRIVATE' && followStatus.isFollowing);
 
-  const refreshPosts = useCallback(async () => {
+  // Refresh posts
+  const refreshPosts = async () => {
     if (!profile?.userId) return;
     try {
       const token = await AsyncStorage.getItem('token');
@@ -77,15 +81,16 @@ const ProfilePage: React.FC = () => {
         `${Config.NEXT_PUBLIC_BACKEND_URL}/posts/user/${profile.userId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        },
+        }
       );
       const data = await res.json();
       setPosts(data?.data || []);
     } catch (error) {
       console.error('Error refreshing posts:', error);
     }
-  }, [profile?.userId]);
+  };
 
+  // ✅ Fetch current user - EXACT MATCH to Next.js
   useEffect(() => {
     async function fetchSelf() {
       try {
@@ -94,30 +99,37 @@ const ProfilePage: React.FC = () => {
           `${Config.NEXT_PUBLIC_BACKEND_URL}/profile/me`,
           {
             headers: { Authorization: `Bearer ${token}` },
-          },
+          }
         );
-        const data = await res.json();
-        setSelfUserId(data?.data?.userId?.toString() || null);
-      } catch {
+        const rawdata = await res.json();
+        const data = rawdata.data;
+        console.log('Fetched self profile data:', data);
+
+        setSelfUserId(data?.profile?.userId?.toString() || null);
+      } catch (error) {
+        console.error('Error fetching self:', error);
         setSelfUserId(null);
       }
     }
     fetchSelf();
   }, []);
 
+  // ✅ Fetch profile data - EXACT MATCH to Next.js
   useEffect(() => {
     if (!profileUserId) return;
 
     async function loadProfile() {
       try {
         setLoading(true);
+
         const token = await AsyncStorage.getItem('token');
 
+        // Fetch profile
         const profileRes = await fetch(
           `${Config.NEXT_PUBLIC_BACKEND_URL}/profile/${profileUserId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
-          },
+          }
         );
 
         if (!profileRes.ok) {
@@ -125,34 +137,44 @@ const ProfilePage: React.FC = () => {
         }
 
         const profileData = await profileRes.json();
-        const fetchedProfile = profileData?.data || null;
+        const stats = profileData?.data?.stats || {};
+        const fetchedProfile = profileData?.data?.profile || null;
 
+        console.log('Fetched profile data:', profileData);
+
+        // ✅ EXACT MATCH to Next.js data handling
         if (fetchedProfile) {
           setProfile({
             id: fetchedProfile.userId,
             userId: fetchedProfile.userId,
-            name: fetchedProfile.user?.name || '',
+            name: fetchedProfile.user?.name || '', // ✅ Extract name from user object
             avatarUrl: fetchedProfile.avatarUrl,
             about: fetchedProfile.about,
             location: fetchedProfile.location,
             age: fetchedProfile.age,
             gender: fetchedProfile.gender,
-            pronouns: fetchedProfile.pronouns,
-            interests: fetchedProfile.interests,
+            pronouns: fetchedProfile.pronouns, // ✅ Now accessible
+            interests: fetchedProfile.interests, // ✅ Now accessible
             accountType: fetchedProfile.accountType,
-            stats: { posts: 0, followers: 0, following: 0 },
+            stats: {
+              posts: stats?.postCount || 0,
+              followers: stats?.followersCount || 0,
+              following: stats?.followingCount || 0,
+            },
           });
         } else {
           setProfile(null);
         }
 
+        // Fetch posts
         if (fetchedProfile?.userId) {
           const postsRes = await fetch(
             `${Config.NEXT_PUBLIC_BACKEND_URL}/posts/user/${fetchedProfile.userId}`,
             {
               headers: { Authorization: `Bearer ${token}` },
-            },
+            }
           );
+
           if (postsRes.ok) {
             const postsData = await postsRes.json();
             setPosts(postsData?.data || []);
@@ -170,6 +192,7 @@ const ProfilePage: React.FC = () => {
     loadProfile();
   }, [profileUserId]);
 
+  // Modal handlers
   const openEdit = () => {
     if (!profile) return;
     setEditData({
@@ -200,7 +223,7 @@ const ProfilePage: React.FC = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(editData),
-        },
+        }
       );
 
       if (res.ok) {
@@ -237,10 +260,18 @@ const ProfilePage: React.FC = () => {
   }
 
   return (
-    <View style={styles.root}>
-      <Navbar />
+    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+      <View style={styles.navWrapper}>
+        <Navbar
+          menuColorClass="bg-black/100"
+          highlightColorClass="bg-indigo-600 text-white"
+          activeHref="/Explore"
+          compact
+        />
+      </View>
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Profile Header */}
         <ProfileHeader
           profile={profile}
           isSelf={isSelf}
@@ -248,6 +279,7 @@ const ProfilePage: React.FC = () => {
           onFollowStatusChange={setFollowStatus}
         />
 
+        {/* New Post Button (only for self) */}
         {isSelf && (
           <TouchableOpacity
             onPress={() => setUploadModalOpen(true)}
@@ -257,6 +289,7 @@ const ProfilePage: React.FC = () => {
           </TouchableOpacity>
         )}
 
+        {/* Posts Grid or Private Account Message */}
         {canViewPosts ? (
           <ProfilePostsGrid
             posts={posts}
@@ -264,6 +297,9 @@ const ProfilePage: React.FC = () => {
           />
         ) : (
           <View style={styles.privateBox}>
+            <View style={styles.privateIconContainer}>
+              <Text style={styles.privateIcon}>🔒</Text>
+            </View>
             <Text style={styles.privateTitle}>This Account is Private</Text>
             <Text style={styles.privateSubtitle}>
               Follow this account to see their photos and videos.
@@ -272,6 +308,7 @@ const ProfilePage: React.FC = () => {
         )}
       </ScrollView>
 
+      {/* Modals */}
       <EditProfileModal
         isOpen={editOpen}
         onClose={() => setEditOpen(false)}
@@ -290,7 +327,7 @@ const ProfilePage: React.FC = () => {
       {selectedPost && (
         <PostDetail post={selectedPost} onClose={() => setSelectedPost(null)} />
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -310,6 +347,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
+  },
+  navWrapper: {
+    backgroundColor: '#000000',
+    paddingVertical: 8,
   },
   errorCode: {
     fontSize: 60,
@@ -347,11 +388,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     alignItems: 'center',
   },
+  privateIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  privateIcon: {
+    fontSize: 48,
+  },
   privateTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 8,
+    color: '#a78bfa',
+    marginBottom: 12,
   },
   privateSubtitle: {
     fontSize: 14,

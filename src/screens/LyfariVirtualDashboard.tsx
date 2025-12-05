@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,6 +17,7 @@ import Toast from 'react-native-toast-message';
 import SoulProfile from '../components/Soul/SoulProfile';
 import SoulMatches from '../components/Soul/SoulMatches';
 import ActivityFeed from '../components/Soul/ActivityFeed';
+import NavbarV from '../components/layout/NavbarV';
 
 // ✅ Interface definitions
 interface ActivityFeedItem {
@@ -662,8 +664,25 @@ const LyfariVirtualDashboard: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+<SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+          {/* Navbar - Fixed at top */}
+          <View style={styles.navWrapper}>
+            <NavbarV
+              menuColorClass="bg-black/100"
+              highlightColorClass="bg-indigo-600 text-white"
+              activeHref="/Explore"
+              compact
+            />
+          </View>        
+          
+          
+{/* ✅ Use ScrollView with nestedScrollEnabled */}
+    <ScrollView
+      style={styles.scrollView}
+      showsVerticalScrollIndicator={false}
+      nestedScrollEnabled={true} // ✅ Add this
+    >      
+      
         {/* Connection Status */}
         <View style={styles.statusBar}>
           <Text style={[styles.statusText, { color: statusColor }]}>
@@ -720,6 +739,14 @@ const LyfariVirtualDashboard: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+  navWrapper: {
+    backgroundColor: '#000000ff', // ✅ Background for sticky header
+    paddingVertical: 8,
+  },
+  root: {
     flex: 1,
     backgroundColor: '#000000',
   },

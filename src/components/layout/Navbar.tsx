@@ -1,4 +1,4 @@
-// src/components/layout/Navbar.tsx (React Native)
+// src/components/layout/Navbar.tsx (React Native - Centered with Sign Out)
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -8,10 +8,13 @@ import {
   Image,
   StyleSheet,
   Platform,
+  Alert,
 } from 'react-native';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from 'react-native-config';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import Toast from 'react-native-toast-message';
 import { useNotificationsContext } from '../../contexts/NotificationsContext';
 import lyfariLogo from '../../assets/LYFARI-INFINITY-LOGO.png';
 
@@ -46,18 +49,19 @@ function isActivePath(href: string, activeHref: string, matchPrefix: boolean) {
 function hrefToRoute(href: string): string {
   switch (href) {
     case '/lyfari':
+      return 'Lyfari';
     case '/lyfari/virtual/dashboard':
       return 'LyfariVirtualDashboard';
     case '/lyfari/real/profile':
-      return 'RealProfileRoot';
+      return 'Profile';
     case '/lyfari/real/soulchat':
       return 'SoulChat';
     case '/lyfari/real/searchexplore':
-      return 'SearchExplore';
+      return 'Explore';
     case '/lyfari/real/notification':
-      return 'Notification';
+      return 'Notifications';
     default:
-      return 'LyfariVirtualDashboard';
+      return 'Lyfari';
   }
 }
 
@@ -71,7 +75,6 @@ const Navbar: React.FC<NavbarProps> = ({
   const navigation = useNavigation<NavigationProp<any>>();
   const { socialUnreadCount, soulChatUnreadThreads } = useNotificationsContext();
 
-  // mirror Next.js: fetch current user once to get id
   useEffect(() => {
     const fetchCurrentUser = async () => {
       try {
@@ -81,8 +84,10 @@ const Navbar: React.FC<NavbarProps> = ({
         const res = await fetch(`${Config.NEXT_PUBLIC_BACKEND_URL}/profile/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const data = await res.json();
-        setCurrentUserId(data?.data?.userId || data?.userId || null);
+        const rawdata = await res.json();
+        const data = rawdata.data;
+
+        setCurrentUserId(data?.profile?.userId);
       } catch (error) {
         console.error('Failed to fetch current user:', error);
       }
@@ -94,7 +99,7 @@ const Navbar: React.FC<NavbarProps> = ({
 
   const handleProfileClick = () => {
     if (currentUserId) {
-      navigation.navigate('RealProfile', { userId: currentUserId });
+      navigation.navigate('Profile', { userId: currentUserId });
     } else {
       navigation.navigate(hrefToRoute('/lyfari/real/profile'));
     }
@@ -110,87 +115,68 @@ const Navbar: React.FC<NavbarProps> = ({
     setOpen(false);
   };
 
-  const renderDesktopNavItem = (item: NavItem) => {
-    const active = isActivePath(item.href, activeHref, matchPrefix);
-
-    if (item.title === 'PROFILE') {
-      return (
-        <TouchableOpacity
-          key={item.title}
-          onPress={handleProfileClick}
-          style={[styles.navItem, active && styles.navItemActive]}
-        >
-          <Text style={[styles.navText, active && styles.navTextActive]}>
-            {item.title}
-          </Text>
-        </TouchableOpacity>
-      );
-    }
-
-    if (item.title === 'SOUL CHAT') {
-      return (
-        <TouchableOpacity
-          key={item.title}
-          onPress={() => handleNavPress(item)}
-          style={[
-            styles.navItem,
-            styles.navItemBadgeWrapper,
-            active && styles.navItemActive,
-          ]}
-        >
-          <Text style={[styles.navText, active && styles.navTextActive]}>
-            {item.title}
-          </Text>
-          {soulChatUnreadThreads > 0 && (
-            <View style={[styles.badge, styles.badgePink]}>
-              <Text style={styles.badgeText}>
-                {soulChatUnreadThreads > 9 ? '9+' : soulChatUnreadThreads}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      );
-    }
-
-    if (item.title === 'NOTIFICATION') {
-      return (
-        <TouchableOpacity
-          key={item.title}
-          onPress={() => handleNavPress(item)}
-          style={[
-            styles.navItem,
-            styles.navItemBadgeWrapper,
-            active && styles.navItemActive,
-          ]}
-        >
-          <Text style={[styles.navText, active && styles.navTextActive]}>
-            {item.title}
-          </Text>
-          {socialUnreadCount > 0 && (
-            <View style={[styles.badge, styles.badgeRed]}>
-              <Text style={styles.badgeText}>
-                {socialUnreadCount > 9 ? '9+' : socialUnreadCount}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      );
-    }
-
-    return (
-      <TouchableOpacity
-        key={item.title}
-        onPress={() => handleNavPress(item)}
-        style={[styles.navItem, active && styles.navItemActive]}
-      >
-        <Text style={[styles.navText, active && styles.navTextActive]}>
-          {item.title}
-        </Text>
-      </TouchableOpacity>
+  // ✅ NEW: Sign Out Handler
+  const handleSignOut = async () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('🔓 Signing out...');
+              
+              // Clear AsyncStorage
+              await AsyncStorage.removeItem('token');
+              await AsyncStorage.removeItem('user');
+              
+              // Sign out from Google
+              try {
+                await GoogleSignin.signOut();
+              } catch (error) {
+                console.log('Google sign out error:', error);
+              }
+              
+              console.log('✅ Sign out successful');
+              
+              // Close menu
+              setOpen(false);
+              
+              // Show success toast
+              Toast.show({
+                type: 'success',
+                text1: 'Signed out successfully',
+                position: 'top',
+              });
+              
+              // Navigate to SignIn screen
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Home' }],
+              });
+              
+            } catch (error) {
+              console.error('❌ Sign out error:', error);
+              Toast.show({
+                type: 'error',
+                text1: 'Sign out failed. Please try again.',
+                position: 'top',
+              });
+            }
+          },
+        },
+      ],
+      { cancelable: true }
     );
   };
 
-  const renderMobileNavItem = (item: NavItem) => {
+  const renderNavItem = (item: NavItem) => {
     const active = isActivePath(item.href, activeHref, matchPrefix);
 
     if (item.title === 'PROFILE') {
@@ -218,7 +204,7 @@ const Navbar: React.FC<NavbarProps> = ({
             {item.title}
           </Text>
           {soulChatUnreadThreads > 0 && (
-            <View style={[styles.badge, styles.badgePink, styles.badgeMobile]}>
+            <View style={[styles.badge, styles.badgePink]}>
               <Text style={styles.badgeText}>
                 {soulChatUnreadThreads > 9 ? '9+' : soulChatUnreadThreads}
               </Text>
@@ -239,7 +225,7 @@ const Navbar: React.FC<NavbarProps> = ({
             {item.title}
           </Text>
           {socialUnreadCount > 0 && (
-            <View style={[styles.badge, styles.badgeRed, styles.badgeMobile]}>
+            <View style={[styles.badge, styles.badgeRed]}>
               <Text style={styles.badgeText}>
                 {socialUnreadCount > 9 ? '9+' : socialUnreadCount}
               </Text>
@@ -264,7 +250,8 @@ const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <View style={styles.navRoot} accessibilityLabel="Primary navigation">
-      <View style={styles.navWrapper}>
+      {/* Centered Navbar Container */}
+      <View style={styles.navContainer}>
         <View style={styles.navInner}>
           <TouchableOpacity
             onPress={() =>
@@ -283,26 +270,30 @@ const Navbar: React.FC<NavbarProps> = ({
             </Text>
           </TouchableOpacity>
 
-          <View style={styles.navList}>{NAV.map(renderDesktopNavItem)}</View>
-
-          <View style={styles.mobileToggleWrapper}>
-            <TouchableOpacity
-              onPress={toggleMobileMenu}
-              style={styles.mobileToggle}
-              accessibilityLabel={open ? 'Close menu' : 'Open menu'}
-            >
-              <Text style={styles.mobileToggleIcon}>
-                {open ? '✕' : '☰'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            onPress={toggleMobileMenu}
+            style={styles.mobileToggle}
+            accessibilityLabel={open ? 'Close menu' : 'Open menu'}
+          >
+            <Text style={styles.mobileToggleIcon}>{open ? '✕' : '☰'}</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
+      {/* Dropdown Menu */}
       {open && (
         <View style={styles.mobileMenuOverlay}>
           <View style={styles.mobileMenu}>
-            {NAV.map(renderMobileNavItem)}
+            {NAV.map(renderNavItem)}
+            
+            {/* ✅ NEW: Sign Out Button */}
+            <View style={styles.divider} />
+            <TouchableOpacity
+              onPress={handleSignOut}
+              style={styles.signOutButton}
+            >
+              <Text style={styles.signOutText}>🚪 SIGN OUT</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -315,74 +306,91 @@ const styles = StyleSheet.create({
     width: '100%',
     zIndex: 50,
   },
-  navWrapper: {
+  navContainer: {
     width: '100%',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 8 : 4,
+    alignItems: 'center',
   },
   navInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'space-between',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(0,0,0,0.9)',
     borderWidth: 2,
     borderColor: 'rgba(129,140,248,0.7)',
+    alignSelf: 'center',
+    minWidth: 180,
+    maxWidth: 260,
   },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 4,
-    paddingVertical: 2,
   },
   logo: {
-    width: 32,
-    height: 32,
-    marginRight: 4,
+    width: 22,
+    height: 22,
+    marginRight: 6,
   },
   brandText: {
     color: '#ffffff',
     fontWeight: '700',
-    fontSize: 20,
-    letterSpacing: 0.6,
+    fontSize: 16,
+    letterSpacing: 0.5,
   },
-  navList: {
-    flexDirection: 'row',
+  mobileToggle: {
+    padding: 4,
+  },
+  mobileToggleIcon: {
+    color: '#ffffff',
+    fontSize: 18,
+  },
+  mobileMenuOverlay: {
+    width: '100%',
     alignItems: 'center',
-    marginLeft: 4,
-    flex: 1,
-    justifyContent: 'flex-end',
+    marginTop: 6,
   },
-  navItem: {
+  mobileMenu: {
+    width: '90%',
+    maxWidth: 360,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    borderRadius: 16,
+    paddingVertical: 8,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginHorizontal: 2,
+    borderWidth: 2,
+    borderColor: 'rgba(129,140,248,0.5)',
   },
-  navItemBadgeWrapper: {
-    position: 'relative',
+  mobileItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 4,
   },
-  navItemActive: {
+  mobileItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  mobileItemActive: {
     backgroundColor: '#f9fafb',
   },
-  navText: {
+  mobileText: {
     color: '#ffffff',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
   },
-  navTextActive: {
+  mobileTextActive: {
     color: '#000000',
-    fontWeight: '700',
   },
   badge: {
-    position: 'absolute',
-    top: -6,
-    right: -4,
     borderRadius: 999,
-    width: 18,
-    height: 18,
+    width: 20,
+    height: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -394,68 +402,28 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: '#ffffff',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
   },
-  mobileToggleWrapper: {
-    marginLeft: 4,
+  // ✅ NEW: Divider and Sign Out Button Styles
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(129,140,248,0.3)',
+    marginVertical: 8,
+    marginHorizontal: 14,
   },
-  mobileToggle: {
-    padding: 6,
-    borderRadius: 999,
-  },
-  mobileToggleIcon: {
-    color: '#ffffff',
-    fontSize: 20,
-  },
-  mobileMenuOverlay: {
-    width: '100%',
-    paddingHorizontal: 16,
-    marginTop: 6,
-  },
-  mobileMenu: {
-    width: '100%',
-    maxWidth: 360,
-    alignSelf: 'center',
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    borderRadius: 14,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-  },
-  mobileItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
+  signOutButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
     marginBottom: 4,
   },
-  mobileItemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginBottom: 4,
-  },
-  mobileItemActive: {
-    backgroundColor: '#f9fafb',
-  },
-  mobileText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  mobileTextActive: {
-    color: '#000000',
-  },
-  badgeMobile: {
-    position: 'relative',
-    top: 0,
-    right: 0,
-    width: 22,
-    height: 22,
+  signOutText: {
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });
 

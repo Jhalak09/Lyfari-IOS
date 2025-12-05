@@ -1,4 +1,4 @@
-// src/components/Posts/PostDetail.tsx (React Native - Modal Version)
+// src/components/Posts/PostDetail.tsx (React Native - Mobile Instagram Style)
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -11,10 +11,13 @@ import {
   Modal,
   ActivityIndicator,
   StyleSheet,
+  Dimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from 'react-native-config';
 import { Post } from '../../types/post.types';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface PostDetailProps {
   post: Post | null;
@@ -178,16 +181,15 @@ export const PostDetail: React.FC<PostDetailProps> = ({ post, onClose }) => {
       <Modal visible transparent animationType="fade">
         <View style={styles.overlay}>
           <View style={styles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>Post</Text>
+              <TouchableOpacity onPress={onClose}>
+                <Text style={styles.closeBtn}>✕</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.noMediaBox}>
               <Text style={styles.noMediaText}>No media available</Text>
-            </View>
-            <View style={styles.sidebar}>
-              <View style={styles.header}>
-                <Text style={styles.headerTitle}>Post</Text>
-                <TouchableOpacity onPress={onClose}>
-                  <Text style={styles.closeBtn}>✕</Text>
-                </TouchableOpacity>
-              </View>
             </View>
           </View>
         </View>
@@ -208,182 +210,180 @@ export const PostDetail: React.FC<PostDetailProps> = ({ post, onClose }) => {
 
   return (
     <Modal visible transparent animationType="fade">
-      <TouchableOpacity
-        activeOpacity={1}
-        style={styles.overlay}
-        onPress={onClose}
-      >
-        <TouchableOpacity
-          activeOpacity={1}
-          style={styles.container}
-          onPress={e => e.stopPropagation()}
-        >
-          {/* Media Section */}
-          <View style={styles.mediaSection}>
-            {currentMedia.type === 'IMAGE' ? (
-              <Image
-                source={{ uri: imageUrl }}
-                style={styles.media}
-                resizeMode="contain"
-              />
-            ) : (
-              <View style={styles.videoPlaceholder}>
-                <Text style={styles.videoText}>Video: {imageUrl}</Text>
-              </View>
-            )}
-
-            {/* Carousel Navigation */}
-            {post.media.length > 1 && (
-              <>
-                <TouchableOpacity
-                  onPress={() =>
-                    setCurrentMediaIndex(prev =>
-                      prev === 0 ? post.media.length - 1 : prev - 1,
-                    )
-                  }
-                  style={styles.navBtnLeft}
-                >
-                  <Text style={styles.navBtnText}>◀</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() =>
-                    setCurrentMediaIndex(prev =>
-                      prev === post.media.length - 1 ? 0 : prev + 1,
-                    )
-                  }
-                  style={styles.navBtnRight}
-                >
-                  <Text style={styles.navBtnText}>▶</Text>
-                </TouchableOpacity>
-
-                {/* Indicators */}
-                <View style={styles.indicators}>
-                  {post.media.map((_, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      onPress={() => setCurrentMediaIndex(index)}
-                      style={[
-                        styles.indicator,
-                        index === safeIndex && styles.indicatorActive,
-                      ]}
-                    />
-                  ))}
-                </View>
-              </>
-            )}
+      <View style={styles.overlay}>
+        <View style={styles.container}>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>Post</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={styles.closeBtn}>✕</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Sidebar */}
-          <View style={styles.sidebar}>
-            {/* Header */}
-            <View style={styles.header}>
-              <Text style={styles.headerTitle}>Post</Text>
-              <TouchableOpacity onPress={onClose}>
-                <Text style={styles.closeBtn}>✕</Text>
-              </TouchableOpacity>
-            </View>
+          {/* Scrollable Content */}
+          <ScrollView style={styles.scrollContent}>
+            {/* Media Section */}
+            <View style={styles.mediaSection}>
+              {currentMedia.type === 'IMAGE' ? (
+                <Image
+                  source={{ uri: imageUrl }}
+                  style={styles.media}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={styles.videoPlaceholder}>
+                  <Text style={styles.videoText}>Video: {imageUrl}</Text>
+                </View>
+              )}
 
-            {/* Stats */}
-            <View style={styles.stats}>
-              <View style={styles.statsRow}>
-                <Text style={styles.statItem}>
-                  ❤️ <Text style={styles.statBold}>{likeCount}</Text> likes
-                </Text>
-                <Text style={styles.statItem}>
-                  💬 <Text style={styles.statBold}>{commentCount}</Text> comments
-                </Text>
-              </View>
-              {isReel && viewCount > 0 && (
-                <Text style={styles.statItem}>
-                  👁️ <Text style={styles.statBold}>{viewCount}</Text> views
-                </Text>
+              {/* Carousel Navigation */}
+              {post.media.length > 1 && (
+                <>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setCurrentMediaIndex(prev =>
+                        prev === 0 ? post.media.length - 1 : prev - 1,
+                      )
+                    }
+                    style={styles.navBtnLeft}
+                  >
+                    <Text style={styles.navBtnText}>◀</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setCurrentMediaIndex(prev =>
+                        prev === post.media.length - 1 ? 0 : prev + 1,
+                      )
+                    }
+                    style={styles.navBtnRight}
+                  >
+                    <Text style={styles.navBtnText}>▶</Text>
+                  </TouchableOpacity>
+
+                  {/* Indicators */}
+                  <View style={styles.indicators}>
+                    {post.media.map((_, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        onPress={() => setCurrentMediaIndex(index)}
+                        style={[
+                          styles.indicator,
+                          index === safeIndex && styles.indicatorActive,
+                        ]}
+                      />
+                    ))}
+                  </View>
+                </>
               )}
             </View>
 
-            {/* Caption */}
-            {post.caption && (
-              <View style={styles.captionBox}>
-                <Text style={styles.caption}>{post.caption}</Text>
+            {/* Details Below Media */}
+            <View style={styles.detailsSection}>
+              {/* Actions */}
+              <View style={styles.actionsRow}>
+                <TouchableOpacity
+                  onPress={handleLike}
+                  disabled={loading}
+                  style={[styles.actionBtn, loading && styles.actionBtnDisabled]}
+                >
+                  <Text style={[styles.actionText, isLiked && styles.actionTextLiked]}>
+                    {isLiked ? '❤️' : '🤍'} Like
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setShowComments(!showComments)}
+                  style={styles.actionBtn}
+                >
+                  <Text style={styles.actionText}>💬 Comment</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.actionBtn}>
+                  <Text style={styles.actionText}>📤 Share</Text>
+                </TouchableOpacity>
               </View>
-            )}
 
-            {/* Actions */}
-            <View style={styles.actionsRow}>
+              {/* Stats */}
+              <View style={styles.stats}>
+                <View style={styles.statsRow}>
+                  <Text style={styles.statItem}>
+                    ❤️ <Text style={styles.statBold}>{likeCount}</Text> likes
+                  </Text>
+                  <Text style={styles.statItem}>
+                    💬 <Text style={styles.statBold}>{commentCount}</Text> comments
+                  </Text>
+                </View>
+                {isReel && viewCount > 0 && (
+                  <Text style={styles.statItem}>
+                    👁️ <Text style={styles.statBold}>{viewCount}</Text> views
+                  </Text>
+                )}
+              </View>
+
+              {/* Caption */}
+              {post.caption && (
+                <View style={styles.captionBox}>
+                  <Text style={styles.caption}>{post.caption}</Text>
+                </View>
+              )}
+
+              {/* Comments Section */}
+              {showComments ? (
+                <View style={styles.commentsSection}>
+                  <View style={styles.commentsList}>
+                    {commentsLoading ? (
+                      <ActivityIndicator color="#6366f1" style={{ marginTop: 20 }} />
+                    ) : comments.length === 0 ? (
+                      <Text style={styles.noComments}>No comments yet</Text>
+                    ) : (
+                      comments.map((comment: any, idx: number) => (
+                        <View key={idx} style={styles.commentItem}>
+                          <Text style={styles.commentUser}>
+                            {comment.user?.username ||
+                              comment.createdBy?.username ||
+                              'User'}
+                          </Text>
+                          <Text style={styles.commentContent}>
+                            {comment.content || comment.text || 'No content'}
+                          </Text>
+                        </View>
+                      ))
+                    )}
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.commentsPlaceholder}>
+                  <Text style={styles.commentsPlaceholderText}>
+                    Click comment to view all comments
+                  </Text>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+
+          {/* Comment Input - Fixed at Bottom */}
+          {showComments && (
+            <View style={styles.commentInputBox}>
+              <TextInput
+                value={newComment}
+                onChangeText={setNewComment}
+                placeholder="Add comment..."
+                placeholderTextColor="#9ca3af"
+                style={styles.commentInput}
+                editable={!loading}
+              />
               <TouchableOpacity
-                onPress={handleLike}
-                disabled={loading}
-                style={[styles.actionBtn, loading && styles.actionBtnDisabled]}
+                onPress={handleAddComment}
+                disabled={loading || !newComment.trim()}
+                style={[
+                  styles.commentSubmitBtn,
+                  (loading || !newComment.trim()) && styles.commentSubmitBtnDisabled,
+                ]}
               >
-                <Text style={[styles.actionText, isLiked && styles.actionTextLiked]}>
-                  {isLiked ? '❤️' : '🤍'} Like
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setShowComments(!showComments)}
-                style={styles.actionBtn}
-              >
-                <Text style={styles.actionText}>💬 Comment</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionBtn}>
-                <Text style={styles.actionText}>📤 Share</Text>
+                <Text style={styles.commentSubmitText}>Post</Text>
               </TouchableOpacity>
             </View>
-
-            {/* Comments Section */}
-            {showComments ? (
-              <View style={styles.commentsSection}>
-                <ScrollView style={styles.commentsList}>
-                  {commentsLoading ? (
-                    <ActivityIndicator color="#6366f1" style={{ marginTop: 20 }} />
-                  ) : comments.length === 0 ? (
-                    <Text style={styles.noComments}>No comments yet</Text>
-                  ) : (
-                    comments.map((comment: any, idx: number) => (
-                      <View key={idx} style={styles.commentItem}>
-                        <Text style={styles.commentUser}>
-                          {comment.user?.username ||
-                            comment.createdBy?.username ||
-                            'User'}
-                        </Text>
-                        <Text style={styles.commentContent}>
-                          {comment.content || comment.text || 'No content'}
-                        </Text>
-                      </View>
-                    ))
-                  )}
-                </ScrollView>
-
-                <View style={styles.commentInputBox}>
-                  <TextInput
-                    value={newComment}
-                    onChangeText={setNewComment}
-                    placeholder="Add comment..."
-                    placeholderTextColor="#9ca3af"
-                    style={styles.commentInput}
-                    editable={!loading}
-                  />
-                  <TouchableOpacity
-                    onPress={handleAddComment}
-                    disabled={loading || !newComment.trim()}
-                    style={[
-                      styles.commentSubmitBtn,
-                      (loading || !newComment.trim()) && styles.commentSubmitBtnDisabled,
-                    ]}
-                  >
-                    <Text style={styles.commentSubmitText}>Post</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.commentsPlaceholder}>
-                <Text style={styles.commentsPlaceholderText}>
-                  Click comment to view all comments
-                </Text>
-              </View>
-            )}
-          </View>
-        </TouchableOpacity>
-      </TouchableOpacity>
+          )}
+        </View>
+      </View>
     </Modal>
   );
 };
@@ -392,21 +392,38 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
+    justifyContent: 'flex-start',
   },
   container: {
-    flexDirection: 'row',
+    flex: 1,
     backgroundColor: '#1f2937',
-    borderRadius: 12,
-    overflow: 'hidden',
-    maxWidth: 900,
-    maxHeight: '90%',
     width: '100%',
+    height: '100%',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+    backgroundColor: '#1f2937',
+  },
+  headerTitle: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  closeBtn: {
+    color: '#9ca3af',
+    fontSize: 24,
+  },
+  scrollContent: {
+    flex: 1,
   },
   mediaSection: {
-    flex: 1,
+    width: '100%',
+    height: SCREEN_HEIGHT * 0.5,
     backgroundColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
@@ -463,28 +480,33 @@ const styles = StyleSheet.create({
   indicatorActive: {
     backgroundColor: '#ffffff',
   },
-  sidebar: {
-    width: 320,
+  detailsSection: {
     backgroundColor: '#1f2937',
-    borderLeftWidth: 1,
-    borderLeftColor: '#374151',
   },
-  header: {
+  actionsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 12,
+    gap: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#374151',
   },
-  headerTitle: {
-    color: '#ffffff',
-    fontWeight: '700',
-    fontSize: 16,
+  actionBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#374151',
+    alignItems: 'center',
   },
-  closeBtn: {
-    color: '#9ca3af',
-    fontSize: 24,
+  actionBtnDisabled: {
+    opacity: 0.5,
+  },
+  actionText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  actionTextLiked: {
+    color: '#ef4444',
   },
   stats: {
     padding: 12,
@@ -512,36 +534,10 @@ const styles = StyleSheet.create({
     color: '#e5e7eb',
     fontSize: 13,
   },
-  actionsRow: {
-    flexDirection: 'row',
-    padding: 12,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#374151',
-  },
-  actionBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#374151',
-    alignItems: 'center',
-  },
-  actionBtnDisabled: {
-    opacity: 0.5,
-  },
-  actionText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  actionTextLiked: {
-    color: '#ef4444',
-  },
   commentsSection: {
-    flex: 1,
+    minHeight: 200,
   },
   commentsList: {
-    flex: 1,
     padding: 12,
   },
   commentItem: {
@@ -572,6 +568,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#374151',
     gap: 8,
+    backgroundColor: '#1f2937',
   },
   commentInput: {
     flex: 1,
@@ -598,10 +595,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   commentsPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
+    padding: 20,
     alignItems: 'center',
-    padding: 12,
   },
   commentsPlaceholderText: {
     color: '#6b7280',

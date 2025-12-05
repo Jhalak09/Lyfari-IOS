@@ -1,4 +1,4 @@
-// src/screens/FeedPage.tsx (React Native)
+// src/screens/FeedPage.tsx (React Native - EXACT Next.js logic)
 
 import React, { useEffect, useState, useCallback } from 'react';
 import {
@@ -12,13 +12,13 @@ import {
   Modal,
   StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from 'react-native-config';
 import { jwtDecode } from 'jwt-decode';
 import Navbar from '../components/layout/Navbar';
 import StoriesCarousel from '../components/Stories/StoriesCarousel';
-import SidebarContainer from '../components/Feed/SidebarContainer';
 
 type Post = {
   id: string;
@@ -48,6 +48,8 @@ type Comment = {
   updatedAt: string;
 };
 
+const LOGO = '/lyfari-logo.png';
+
 const FeedPage: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [stories, setStories] = useState<any[]>([]);
@@ -62,84 +64,92 @@ const FeedPage: React.FC = () => {
 
   const navigation = useNavigation<NavigationProp<any>>();
 
-  const fetchFeed = useCallback(async () => {
+  useEffect(() => {
+    fetchFeed();
+
+    // Decode token to get current user ID
+    (async () => {
+      const token = await AsyncStorage.getItem('token');
+      console.log('Token:', token);
+      if (token) {
+        try {
+          const decoded = jwtDecode<{ userId: number }>(token);
+          console.log('Decoded token:', decoded);
+          setCurrentUserId(decoded.userId);
+        } catch (e) {
+          console.log('JWT decode error:', e);
+        }
+      }
+    })();
+  }, []);
+
+  async function fetchFeed() {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem('token');
-
       const res = await fetch(`${Config.NEXT_PUBLIC_BACKEND_URL}/feed`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
-      const feedPosts: Post[] = json?.data || [];
+      const feedPosts = json?.data || [];
       setPosts(feedPosts);
 
+      // Set initial likes state
       const likedPostIds = new Set<string>(
-        feedPosts.filter(p => p.isLiked).map(p => p.id),
+        feedPosts.filter((p: Post) => p.isLiked).map((p: Post) => p.id)
       );
       setUserLikes(likedPostIds);
 
+      // Fetch stories
       try {
         const storiesRes = await fetch(
           `${Config.NEXT_PUBLIC_BACKEND_URL}/stories/feed`,
-          { headers: { Authorization: `Bearer ${token}` } },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
         );
         if (storiesRes.ok) {
           const storiesData = await storiesRes.json();
           setStories(storiesData.data || []);
         }
-      } catch {
-        // stories not available
+      } catch (err) {
+        console.log('Stories not available');
       }
-    } catch {
+    } catch (e) {
       setPosts([]);
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    fetchFeed();
-
-    (async () => {
-      const token = await AsyncStorage.getItem('token');
-      if (token) {
-        try {
-          const decoded = jwtDecode<{ userId: number }>(token);
-          setCurrentUserId(decoded.userId);
-        } catch (e) {
-            console.log(e)
-        }
-      }
-    })();
-  }, [fetchFeed]);
+  }
 
   const handleUsernameClick = (userId: string) => {
-    navigation.navigate('ProfileVirtual', { userId });
+    navigation.navigate('Profile', { userId });
   };
 
   const handleLike = async (postId: string) => {
     try {
       const isLiked = userLikes.has(postId);
 
-      setUserLikes(prev => {
-        const setCopy = new Set(prev);
-        if (isLiked) setCopy.delete(postId);
-        else setCopy.add(postId);
-        return setCopy;
+      // Optimistic update
+      setUserLikes((prev) => {
+        const newSet = new Set(prev);
+        if (isLiked) {
+          newSet.delete(postId);
+        } else {
+          newSet.add(postId);
+        }
+        return newSet;
       });
 
-      setPosts(prev =>
-        prev.map(p =>
+      setPosts((prev) =>
+        prev.map((p) =>
           p.id === postId
-            ? {
-                ...p,
-                likes: isLiked ? Math.max(0, p.likes - 1) : p.likes + 1,
-              }
-            : p,
-        ),
+            ? { ...p, likes: isLiked ? Math.max(0, p.likes - 1) : p.likes + 1 }
+            : p
+        )
       );
 
+      // API call
       const token = await AsyncStorage.getItem('token');
       const endpoint = `${Config.NEXT_PUBLIC_BACKEND_URL}/posts/${postId}/like`;
       const response = await fetch(endpoint, {
@@ -148,21 +158,22 @@ const FeedPage: React.FC = () => {
       });
 
       if (!response.ok) {
-        setUserLikes(prev => {
-          const setCopy = new Set(prev);
-          if (isLiked) setCopy.add(postId);
-          else setCopy.delete(postId);
-          return setCopy;
+        // Revert on error
+        setUserLikes((prev) => {
+          const newSet = new Set(prev);
+          if (isLiked) {
+            newSet.add(postId);
+          } else {
+            newSet.delete(postId);
+          }
+          return newSet;
         });
-        setPosts(prev =>
-          prev.map(p =>
+        setPosts((prev) =>
+          prev.map((p) =>
             p.id === postId
-              ? {
-                  ...p,
-                  likes: isLiked ? p.likes + 1 : Math.max(0, p.likes - 1),
-                }
-              : p,
-          ),
+              ? { ...p, likes: isLiked ? p.likes + 1 : Math.max(0, p.likes - 1) }
+              : p
+          )
         );
       }
     } catch (error) {
@@ -185,19 +196,21 @@ const FeedPage: React.FC = () => {
   const openComments = async (postId: string) => {
     setSelectedPostId(postId);
     setLoadingComments(true);
-    setPostComments([]);
+    setPostComments([]); // Always reset on open
     try {
       const token = await AsyncStorage.getItem('token');
       const response = await fetch(
         `${Config.NEXT_PUBLIC_BACKEND_URL}/posts/${postId}/comments`,
-        { headers: { Authorization: `Bearer ${token}` } },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
       if (response.ok) {
         const data = await response.json();
         setPostComments(data.data);
       }
-    } catch {
-      // ignore
+    } catch (error) {
+      // Optionally handle error
     } finally {
       setLoadingComments(false);
     }
@@ -224,18 +237,16 @@ const FeedPage: React.FC = () => {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ content: commentText }),
-        },
+        }
       );
 
       if (response.ok) {
         const data = await response.json();
-        setPostComments(prev => [data.data, ...prev]);
-        setPosts(prev =>
-          prev.map(p =>
-            p.id === selectedPostId
-              ? { ...p, comments: p.comments + 1 }
-              : p,
-          ),
+        setPostComments((prev) => [data.data, ...prev]);
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === selectedPostId ? { ...p, comments: p.comments + 1 } : p
+          )
         );
         setCommentText('');
       }
@@ -248,251 +259,244 @@ const FeedPage: React.FC = () => {
 
   if (loading) {
     return (
-      <View style={styles.loadingRoot}>
+      <SafeAreaView style={styles.loadingRoot} edges={['top', 'left', 'right']}>
         <View style={styles.loadingBox}>
           <ActivityIndicator size="large" color="#6366F1" />
           <Text style={styles.loadingText}>Loading your feed...</Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.root}>
-      {/* Navbar */}
-      <View style={styles.navWrapper}>
-        <Navbar
-          menuColorClass="bg-black/100"
-          highlightColorClass="bg-indigo-600 text-white"
-          activeHref="/home"
-          compact
-        />
-      </View>
-
-      {/* Main content */}
-      <View style={styles.mainRow}>
-        {/* Left: Stories (desktop-only in web; here just left column) */}
-        <View style={styles.leftCol}>
-          <StoriesCarousel
-            stories={stories}
-            currentUserId={currentUserId}
+    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+      <ScrollView
+        style={styles.mainScroll}
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[0]}
+      >
+        <View style={styles.navWrapper}>
+          <Navbar
+            menuColorClass="bg-black/100"
+            highlightColorClass="bg-indigo-600 text-white"
+            activeHref="/home"
+            compact
           />
         </View>
 
-        {/* Center: Feed */}
-        <View style={styles.centerCol}>
-          <View style={styles.feedHeader}>
-            <Text style={styles.feedTitle}>Feed</Text>
-            <Text style={styles.feedCount}>{posts.length} posts</Text>
-          </View>
+        <View style={styles.storiesWrapper}>
+          <StoriesCarousel stories={stories} currentUserId={currentUserId} />
+        </View>
 
-          <View style={styles.feedCard}>
-            <ScrollView
-              contentContainerStyle={styles.feedScroll}
-              showsVerticalScrollIndicator={false}
-            >
-              {posts.length === 0 ? (
-                <View style={styles.emptyFeedBox}>
-                  <Text style={styles.emptyFeedTitle}>
-                    No posts yet in your feed
-                  </Text>
-                  <Text style={styles.emptyFeedSub}>
-                    Start sharing your moments to connect with others
-                  </Text>
-                </View>
-              ) : (
-                posts.map(post => (
-                  <View key={post.id} style={styles.postCard}>
-                    {/* Header */}
-                    <View style={styles.postHeader}>
-                      <Image
-                        source={{
-                          uri: post.user.avatar
-                            ? `${Config.NEXT_PUBLIC_BACKEND_URL}${post.user.avatar}`
-                            : `${Config.NEXT_PUBLIC_BACKEND_URL}/lyfari-logo.png`,
-                        }}
-                        style={styles.avatar}
-                      />
-                      <View style={styles.postHeaderTextBox}>
-                        <TouchableOpacity
-                          onPress={() => handleUsernameClick(post.user.id)}
-                        >
-                          <Text style={styles.username} numberOfLines={1}>
-                            {post.user.name}
-                          </Text>
-                        </TouchableOpacity>
-                        <Text style={styles.postDate}>
-                          {new Date(post.createdAt).toLocaleDateString()}
-                        </Text>
-                      </View>
-                    </View>
+        <View style={styles.feedHeader}>
+          <Text style={styles.feedTitle}>Feed</Text>
+          <Text style={styles.feedCount}>{posts.length} posts</Text>
+        </View>
 
-                    {/* Media */}
-                    <View style={styles.mediaBox}>
-                      {post.image ? (
-                        <TouchableOpacity onPress={() => handleView(post.id)}>
-                          <Image
-                            source={{ uri: post.image }}
-                            style={styles.media}
-                            resizeMode="contain"
-                          />
-                        </TouchableOpacity>
-                      ) : post.video ? (
-                        // For native video, integrate react-native-video; placeholder box for now
-                        <TouchableOpacity
-                          onPress={() => handleView(post.id)}
-                          style={styles.videoPlaceholder}
-                        >
-                          <Text style={styles.videoText}>Video</Text>
-                        </TouchableOpacity>
-                      ) : (
-                        <View style={styles.noMediaBox}>
-                          <Text style={styles.noMediaText}>No media</Text>
-                        </View>
-                      )}
-                    </View>
-
-                    {/* Footer / actions */}
-                    <View style={styles.postFooter}>
-                      <View style={styles.actionsRow}>
-                        <TouchableOpacity
-                          onPress={() => handleLike(post.id)}
-                          style={[
-                            styles.likeBtn,
-                            userLikes.has(post.id) && styles.likeBtnActive,
-                          ]}
-                        >
-                          <Text style={styles.likeIcon}>
-                            {userLikes.has(post.id) ? '❤️' : '♥'}
-                          </Text>
-                          <Text style={styles.countText}>{post.likes}</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          onPress={() => openComments(post.id)}
-                          style={styles.commentBtn}
-                        >
-                          <Text style={styles.commentIcon}>💬</Text>
-                          <Text style={styles.countText}>
-                            {post.comments}
-                          </Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.shareBtn}>
-                          <Text style={styles.shareIcon}>↗</Text>
-                        </TouchableOpacity>
-                      </View>
-
-                      {post.caption ? (
-                        <Text style={styles.caption}>
-                          <Text style={styles.captionUser}>
-                            {post.user.name}{' '}
-                          </Text>
-                          {post.caption}
-                        </Text>
-                      ) : null}
-                    </View>
+        <View style={styles.postsContainer}>
+          {posts.length === 0 ? (
+            <View style={styles.emptyFeedBox}>
+              <Text style={styles.emptyFeedTitle}>
+                No posts yet in your feed
+              </Text>
+              <Text style={styles.emptyFeedSub}>
+                Start sharing your moments to connect with others
+              </Text>
+            </View>
+          ) : (
+            posts.map((post) => (
+              <View key={post.id} style={styles.postCard}>
+                {/* Header */}
+                <View style={styles.postHeader}>
+                  <Image
+                    source={{
+                      uri: post?.user?.avatar
+                        ? `${Config.NEXT_PUBLIC_BACKEND_URL}${post.user.avatar}`
+                        : `${Config.NEXT_PUBLIC_BACKEND_URL}/lyfari-logo.png`,
+                    }}
+                    style={styles.avatar}
+                  />
+                  <View style={styles.postHeaderTextBox}>
+                    <TouchableOpacity
+                      onPress={() => handleUsernameClick(post.user.id)}
+                    >
+                      <Text style={styles.username} numberOfLines={1}>
+                        {post.user.name}
+                      </Text>
+                    </TouchableOpacity>
+                    <Text style={styles.postDate}>
+                      {new Date(post.createdAt).toLocaleDateString()}
+                    </Text>
                   </View>
-                ))
-              )}
-            </ScrollView>
-          </View>
-        </View>
+                </View>
 
-        {/* Right: Sidebar (optional on mobile) */}
-        <View style={styles.rightCol}>
-          <SidebarContainer />
+                {/* Media */}
+                <View style={styles.mediaBox}>
+                  {post.image ? (
+                    <TouchableOpacity onPress={() => handleView(post.id)}>
+                      <Image
+                        source={{ uri: post.image }}
+                        style={styles.media}
+                        resizeMode="contain"
+                      />
+                    </TouchableOpacity>
+                  ) : post.video ? (
+                    <TouchableOpacity
+                      onPress={() => handleView(post.id)}
+                      style={styles.videoPlaceholder}
+                    >
+                      <Text style={styles.videoText}>🎥 Video</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={styles.noMediaBox}>
+                      <Text style={styles.noMediaText}>No media</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Footer / actions */}
+                <View style={styles.postFooter}>
+                  <View style={styles.actionsRow}>
+                    <TouchableOpacity
+                      onPress={() => handleLike(post.id)}
+                      style={[
+                        styles.likeBtn,
+                        userLikes.has(post.id) && styles.likeBtnActive,
+                      ]}
+                    >
+                      <Text style={styles.likeIcon}>
+                        {userLikes.has(post.id) ? '❤️' : '♥'}
+                      </Text>
+                      <Text style={styles.countText}>{post.likes}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => openComments(post.id)}
+                      style={styles.commentBtn}
+                    >
+                      <Text style={styles.commentIcon}>💬</Text>
+                      <Text style={styles.countText}>{post.comments}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.shareBtn}>
+                      <Text style={styles.shareIcon}>↗</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {post.caption ? (
+                    <Text style={styles.caption}>
+                      <Text style={styles.captionUser}>
+                        {post.user.name}{' '}
+                      </Text>
+                      {post.caption}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            ))
+          )}
         </View>
-      </View>
+      </ScrollView>
 
       {/* Comments Modal */}
-      <Modal
-        visible={!!selectedPostId}
-        transparent
-        animationType="fade"
-        onRequestClose={closeComments}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Comments</Text>
-              <TouchableOpacity onPress={closeComments}>
-                <Text style={styles.modalClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              style={styles.commentsScroll}
-              contentContainerStyle={{ padding: 12 }}
+      {selectedPostId && (
+        <Modal
+          visible={true}
+          transparent
+          animationType="fade"
+          onRequestClose={closeComments}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={closeComments}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              style={styles.modalBox}
+              onPress={(e) => e.stopPropagation()}
             >
-              {loadingComments ? (
-                <View style={styles.commentsLoader}>
-                  <ActivityIndicator color="#6366F1" />
-                </View>
-              ) : postComments.length === 0 ? (
-                <View style={styles.noCommentsBox}>
-                  <Text style={styles.noCommentsText}>
-                    No comments yet. Be the first to comment!
-                  </Text>
-                </View>
-              ) : (
-                postComments.map(comment => (
-                  <View key={comment.id} style={styles.commentRow}>
-                    <Image
-                      source={{
-                        uri: comment.author?.profile?.avatarUrl
-                          ? `${Config.NEXT_PUBLIC_BACKEND_URL}${comment.author.profile.avatarUrl}`
-                          : `${Config.NEXT_PUBLIC_BACKEND_URL}/lyfari-logo.png`,
-                      }}
-                      style={styles.commentAvatar}
-                    />
-                    <View style={styles.commentContentBox}>
-                      <View style={styles.commentBubble}>
-                        <Text style={styles.commentAuthor}>
-                          {comment.author.name}
-                        </Text>
-                        <Text style={styles.commentText}>
-                          {comment.content}
+              {/* Modal Header */}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Comments</Text>
+                <TouchableOpacity onPress={closeComments}>
+                  <Text style={styles.modalClose}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Comments List */}
+              <ScrollView
+                style={styles.commentsScroll}
+                contentContainerStyle={{ padding: 16 }}
+              >
+                {loadingComments ? (
+                  <View style={styles.commentsLoader}>
+                    <ActivityIndicator color="#6366F1" />
+                  </View>
+                ) : postComments.length === 0 ? (
+                  <View style={styles.noCommentsBox}>
+                    <Text style={styles.noCommentsText}>
+                      No comments yet. Be the first to comment!
+                    </Text>
+                  </View>
+                ) : (
+                  postComments.map((comment) => (
+                    <View key={comment.id} style={styles.commentRow}>
+                      <Image
+                        source={{
+                          uri: comment.author?.profile?.avatarUrl
+                            ? `${Config.NEXT_PUBLIC_BACKEND_URL}${comment.author.profile.avatarUrl}`
+                            : `${Config.NEXT_PUBLIC_BACKEND_URL}/lyfari-logo.png`,
+                        }}
+                        style={styles.commentAvatar}
+                      />
+                      <View style={styles.commentContentBox}>
+                        <View style={styles.commentBubble}>
+                          <Text style={styles.commentAuthor}>
+                            {comment.author.name}
+                          </Text>
+                          <Text style={styles.commentText}>
+                            {comment.content}
+                          </Text>
+                        </View>
+                        <Text style={styles.commentDate}>
+                          {new Date(comment.createdAt).toLocaleDateString()}
                         </Text>
                       </View>
-                      <Text style={styles.commentDate}>
-                        {new Date(
-                          comment.createdAt,
-                        ).toLocaleDateString()}
-                      </Text>
                     </View>
-                  </View>
-                ))
-              )}
-            </ScrollView>
+                  ))
+                )}
+              </ScrollView>
 
-            <View style={styles.commentInputRow}>
-              <TextInput
-                value={commentText}
-                onChangeText={setCommentText}
-                placeholder="Add a comment..."
-                placeholderTextColor="#9ca3af"
-                style={styles.commentInput}
-                onSubmitEditing={submitComment}
-              />
-              <TouchableOpacity
-                onPress={submitComment}
-                disabled={!commentText.trim() || submittingComment}
-                style={[
-                  styles.commentSendBtn,
-                  (!commentText.trim() || submittingComment) &&
-                    styles.commentSendBtnDisabled,
-                ]}
-              >
-                <Text style={styles.commentSendText}>
-                  {submittingComment ? '...' : 'Post'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </View>
+              {/* Comment Input */}
+              <View style={styles.commentInputRow}>
+                <TextInput
+                  value={commentText}
+                  onChangeText={setCommentText}
+                  onSubmitEditing={submitComment}
+                  placeholder="Add a comment..."
+                  placeholderTextColor="#9ca3af"
+                  style={styles.commentInput}
+                />
+                <TouchableOpacity
+                  onPress={submitComment}
+                  disabled={!commentText.trim() || submittingComment}
+                  style={[
+                    styles.commentSendBtn,
+                    (!commentText.trim() || submittingComment) &&
+                      styles.commentSendBtnDisabled,
+                  ]}
+                >
+                  <Text style={styles.commentSendText}>
+                    {submittingComment ? '...' : 'Post'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
+      )}
+    </SafeAreaView>
   );
 };
 
@@ -509,43 +513,32 @@ const styles = StyleSheet.create({
   },
   loadingBox: { alignItems: 'center' },
   loadingText: { color: '#a5b4fc', marginTop: 8 },
+  mainScroll: {
+    flex: 1,
+  },
   navWrapper: {
-    paddingTop: 8,
+    backgroundColor: '#000000',
+    paddingVertical: 8,
+  },
+  storiesWrapper: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(129,140,248,0.2)',
+    paddingBottom: 8,
     paddingHorizontal: 12,
-  },
-  mainRow: {
-    flex: 1,
-    flexDirection: 'row',
-    paddingHorizontal: 12,
-    paddingTop: 8,
-  },
-  leftCol: {
-    width: 80,
-    paddingRight: 8,
-  },
-  centerCol: {
-    flex: 1,
-    paddingHorizontal: 4,
-  },
-  rightCol: {
-    width: 0, // hide on mobile; adjust if needed
   },
   feedHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   feedTitle: { color: '#ffffff', fontSize: 20, fontWeight: '700' },
   feedCount: { color: '#9ca3af', fontSize: 12 },
-  feedCard: {
-    flex: 1,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: 'rgba(129,140,248,0.4)',
-    backgroundColor: 'rgba(15,23,42,0.96)',
-    overflow: 'hidden',
+  postsContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 16,
   },
-  feedScroll: { padding: 10, paddingBottom: 16 },
   emptyFeedBox: {
     padding: 20,
     alignItems: 'center',
@@ -633,88 +626,91 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 10,
+    padding: 16,
   },
   modalBox: {
     width: '100%',
-    maxWidth: 500,
-    maxHeight: '85%',
+    maxWidth: 672,
+    maxHeight: '80%',
     backgroundColor: '#020617',
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 2,
-    borderColor: 'rgba(129,140,248,0.4)',
+    borderColor: 'rgba(129,140,248,0.3)',
     overflow: 'hidden',
   },
   modalHeader: {
-    padding: 10,
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(148,163,184,0.4)',
+    borderBottomColor: 'rgba(148,163,184,0.1)',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  modalTitle: { color: '#ffffff', fontSize: 18, fontWeight: '700' },
-  modalClose: { color: '#e5e7eb', fontSize: 20 },
+  modalTitle: { color: '#ffffff', fontSize: 20, fontWeight: '700' },
+  modalClose: { color: '#e5e7eb', fontSize: 24 },
   commentsScroll: { flex: 1 },
   commentsLoader: {
-    paddingVertical: 20,
+    paddingVertical: 32,
     alignItems: 'center',
   },
   noCommentsBox: {
-    paddingVertical: 20,
+    paddingVertical: 32,
     alignItems: 'center',
   },
   noCommentsText: { color: '#9ca3af' },
   commentRow: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 16,
+    gap: 12,
   },
   commentAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    flexShrink: 0,
   },
   commentContentBox: { flex: 1 },
   commentBubble: {
-    backgroundColor: 'rgba(31,41,55,0.9)',
-    borderRadius: 10,
-    padding: 8,
+    backgroundColor: 'rgba(31,41,55,0.5)',
+    borderRadius: 12,
+    padding: 12,
   },
-  commentAuthor: { color: '#ffffff', fontWeight: '600', fontSize: 13 },
-  commentText: { color: '#f9fafb', fontSize: 13 },
+  commentAuthor: { color: '#ffffff', fontWeight: '600', fontSize: 14, marginBottom: 4 },
+  commentText: { color: '#f9fafb', fontSize: 14 },
   commentDate: {
     color: '#9ca3af',
-    fontSize: 11,
-    marginTop: 2,
-    marginLeft: 4,
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 12,
   },
   commentInputRow: {
     flexDirection: 'row',
-    padding: 8,
+    padding: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(148,163,184,0.4)',
+    borderTopColor: 'rgba(148,163,184,0.1)',
+    gap: 12,
   },
   commentInput: {
     flex: 1,
-    borderRadius: 10,
-    backgroundColor: 'rgba(31,41,55,0.9)',
-    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(31,41,55,0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 16,
     paddingVertical: 8,
     color: '#ffffff',
-    fontSize: 13,
-    marginRight: 6,
+    fontSize: 14,
   },
   commentSendBtn: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 24,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 12,
     backgroundColor: '#4f46e5',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  commentSendBtnDisabled: { backgroundColor: '#374151' },
-  commentSendText: { color: '#ffffff', fontWeight: '600', fontSize: 13 },
+  commentSendBtnDisabled: { backgroundColor: '#374151', opacity: 0.5 },
+  commentSendText: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
 });
 
 export default FeedPage;

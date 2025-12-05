@@ -1,4 +1,4 @@
-// src/screens/SoulChatPage.tsx (React Native - FULLY FIXED)
+// src/screens/SoulChatPage.tsx (React Native - Mobile Optimized)
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
@@ -16,6 +16,8 @@ import Toast from 'react-native-toast-message';
 import SoulConversationsSidebar from '../components/Soulchat/SoulConversationsSidebar';
 import SoulChatArea from '../components/Soulchat/SoulChatArea';
 import NewChatModal from '../components/Soulchat/NewChatModal';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Navbar from '../components/layout/Navbar';
 
 // ✅ Same Types as Next.js
 type SoulConversation = {
@@ -52,7 +54,7 @@ type SoulMeta = {
 };
 
 const SoulChatPage: React.FC = () => {
-  // ✅ Same state as Next.js
+  // ✅ ALL STATE HOOKS FIRST (Before any conditions/logic)
   const [conversations, setConversations] = useState<SoulConversation[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<SoulMessage[]>([]);
@@ -66,75 +68,18 @@ const SoulChatPage: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
   const [pinnedChats, setPinnedChats] = useState<string[]>([]);
+  const [showChatArea, setShowChatArea] = useState(false); // ✅ Mobile view state
 
+  // ✅ ALL REFS
   const inputRef = useRef<TextInput>(null);
   const messagesEndRef = useRef<View>(null);
-  const socketRef = useRef<Socket | null>(null); // ✅ Use ref instead of state
+  const socketRef = useRef<Socket | null>(null);
 
-  // ✅ Get current user ID from token
-  useEffect(() => {
-    const getUserId = async () => {
-      try {
-        const token = await AsyncStorage.getItem('token');
-        if (token) {
-          const base64Url = token.split('.')[1];
-          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-          const jsonPayload = decodeURIComponent(
-            atob(base64)
-              .split('')
-              .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-              .join('')
-          );
-          const payload = JSON.parse(jsonPayload);
-          
-          setCurrentUserId(
-            payload.userId?.toString() ||
-              payload.sub?.toString() ||
-              payload.id?.toString()
-          );
-        }
-      } catch (error) {
-        console.error('Failed to parse token:', error);
-      }
-    };
-    getUserId();
-  }, []);
-
-  // ✅ Sync pinned chats from backend
-  useEffect(() => {
-    const syncPinnedChats = async () => {
-      try {
-        const token = await AsyncStorage.getItem('token');
-        if (!token) return;
-
-        const res = await fetch(
-          `${Config.NEXT_PUBLIC_BACKEND_URL}/soul-chat/pinned`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && Array.isArray(data.data)) {
-            const backendPinnedIds = data.data.map((pin: any) =>
-              pin.id.toString()
-            );
-            setPinnedChats(backendPinnedIds);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to sync pinned chats:', error);
-      }
-    };
-
-    syncPinnedChats();
-  }, []);
-
-  // ✅ Handle chat created
+  // ✅ ALL CALLBACKS
   const handleChatCreated = useCallback(
     async (conversationId: number) => {
       setSelectedChatId(conversationId.toString());
+      setShowChatArea(true); // ✅ Show chat area on mobile
       try {
         const token = await AsyncStorage.getItem('token');
         if (!token) return;
@@ -189,7 +134,6 @@ const SoulChatPage: React.FC = () => {
     [pinnedChats]
   );
 
-  // ✅ Handle pin chat
   const handlePinChat = useCallback(async () => {
     if (!selectedChatId) return;
     try {
@@ -215,7 +159,6 @@ const SoulChatPage: React.FC = () => {
     }
   }, [selectedChatId, pinnedChats]);
 
-  // ✅ Handle unpin chat
   const handleUnpinChat = useCallback(async () => {
     if (!selectedChatId) return;
     try {
@@ -241,7 +184,145 @@ const SoulChatPage: React.FC = () => {
     }
   }, [selectedChatId, pinnedChats]);
 
-  // ✅ Load conversations
+  const handleDeleteMessage = useCallback(
+    async (messageId: string, deleteType: 'FOR_SELF' | 'FOR_EVERYONE') => {
+      if (!selectedChatId) return;
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const res = await fetch(
+          `${Config.NEXT_PUBLIC_BACKEND_URL}/soul-chat/${selectedChatId}/messages/${messageId}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ deleteType }),
+          }
+        );
+
+        if (res.ok) {
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === messageId ? { ...msg, isDeleted: true, deleteType } : msg
+            )
+          );
+          Toast.show({ type: 'success', text1: 'Message deleted' });
+        }
+      } catch (error) {
+        console.error('Failed to delete message:', error);
+        Toast.show({ type: 'error', text1: 'Failed to delete message' });
+      }
+    },
+    [selectedChatId]
+  );
+
+  const handleReplyToMessage = useCallback(
+    async (replyToId: string, replyText: string) => {
+      if (!selectedChatId) return;
+      try {
+        setSending(true);
+        const token = await AsyncStorage.getItem('token');
+        const res = await fetch(
+          `${Config.NEXT_PUBLIC_BACKEND_URL}/soul-chat/${selectedChatId}/messages/${replyToId}/reply`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ text: replyText }),
+          }
+        );
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.data) {
+            const newReplyMessage: SoulMessage = {
+              id: data.data.id,
+              chatId: selectedChatId,
+              senderId: data.data.senderId,
+              senderName: data.data.senderName,
+              type: 'text',
+              text: data.data.text,
+              replyTo: data.data.replyTo,
+              createdAt: data.data.createdAt,
+            };
+
+            setMessages(prev => [...prev, newReplyMessage]);
+            setText('');
+            Toast.show({ type: 'success', text1: 'Reply sent' });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to send reply:', error);
+        Toast.show({ type: 'error', text1: 'Failed to send reply' });
+      } finally {
+        setSending(false);
+      }
+    },
+    [selectedChatId]
+  );
+
+  // ✅ ALL EFFECTS
+  useEffect(() => {
+    const getUserId = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (token) {
+          const base64Url = token.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(
+            atob(base64)
+              .split('')
+              .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          );
+          const payload = JSON.parse(jsonPayload);
+          
+          setCurrentUserId(
+            payload.userId?.toString() ||
+              payload.sub?.toString() ||
+              payload.id?.toString()
+          );
+        }
+      } catch (error) {
+        console.error('Failed to parse token:', error);
+      }
+    };
+    getUserId();
+  }, []);
+
+  useEffect(() => {
+    const syncPinnedChats = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) return;
+
+        const res = await fetch(
+          `${Config.NEXT_PUBLIC_BACKEND_URL}/soul-chat/pinned`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.data)) {
+            const backendPinnedIds = data.data.map((pin: any) =>
+              pin.id.toString()
+            );
+            setPinnedChats(backendPinnedIds);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to sync pinned chats:', error);
+      }
+    };
+
+    syncPinnedChats();
+  }, []);
+
   useEffect(() => {
     async function loadConversations() {
       try {
@@ -289,9 +370,10 @@ const SoulChatPage: React.FC = () => {
 
             setConversations(transformedConversations);
 
-            if (!selectedChatId && transformedConversations.length > 0) {
-              setSelectedChatId(transformedConversations[0].id);
-            }
+            // ✅ Don't auto-select on mobile
+            // if (!selectedChatId && transformedConversations.length > 0) {
+            //   setSelectedChatId(transformedConversations[0].id);
+            // }
           }
         }
       } catch (error) {
@@ -306,9 +388,8 @@ const SoulChatPage: React.FC = () => {
     }
 
     loadConversations();
-  }, [selectedChatId, pinnedChats]);
+  }, [pinnedChats]);
 
-  // ✅ Load chat messages
   useEffect(() => {
     if (!selectedChatId) return;
 
@@ -378,14 +459,12 @@ const SoulChatPage: React.FC = () => {
     loadChat();
   }, [selectedChatId]);
 
-  // ✅ Setup WebSocket
   useEffect(() => {
     async function setupWebSocket() {
       try {
         const token = await AsyncStorage.getItem('token');
         if (!token) return;
 
-        // Close existing socket if any
         if (socketRef.current) {
           socketRef.current.close();
         }
@@ -508,7 +587,7 @@ const SoulChatPage: React.FC = () => {
     };
   }, [selectedChatId, currentUserId]);
 
-  // ✅ Send text message
+  // ✅ REGULAR FUNCTIONS (non-hooks)
   const sendTextMessage = async () => {
     if (!text.trim() || !selectedChatId) return;
 
@@ -556,7 +635,6 @@ const SoulChatPage: React.FC = () => {
     }
   };
 
-  // ✅ Send image message
   const sendImageMessage = async () => {
     if (!imageFile || !selectedChatId || sending) return;
 
@@ -611,144 +689,107 @@ const SoulChatPage: React.FC = () => {
     }
   };
 
-  // ✅ Delete message
-  const handleDeleteMessage = useCallback(
-    async (messageId: string, deleteType: 'FOR_SELF' | 'FOR_EVERYONE') => {
-      if (!selectedChatId) return;
-      try {
-        const token = await AsyncStorage.getItem('token');
-        const res = await fetch(
-          `${Config.NEXT_PUBLIC_BACKEND_URL}/soul-chat/${selectedChatId}/messages/${messageId}`,
-          {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ deleteType }),
-          }
-        );
+  const handleSelectConversation = (chatId: string) => {
+    setSelectedChatId(chatId);
+    setShowChatArea(true); // ✅ Show chat area on mobile
+  };
 
-        if (res.ok) {
-          setMessages(prev =>
-            prev.map(msg =>
-              msg.id === messageId ? { ...msg, isDeleted: true, deleteType } : msg
-            )
-          );
-          Toast.show({ type: 'success', text1: 'Message deleted' });
-        }
-      } catch (error) {
-        console.error('Failed to delete message:', error);
-        Toast.show({ type: 'error', text1: 'Failed to delete message' });
-      }
-    },
-    [selectedChatId]
-  );
-
-  // ✅ Reply to message
-  const handleReplyToMessage = useCallback(
-    async (replyToId: string, replyText: string) => {
-      if (!selectedChatId) return;
-      try {
-        setSending(true);
-        const token = await AsyncStorage.getItem('token');
-        const res = await fetch(
-          `${Config.NEXT_PUBLIC_BACKEND_URL}/soul-chat/${selectedChatId}/messages/${replyToId}/reply`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ text: replyText }),
-          }
-        );
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && data.data) {
-            const newReplyMessage: SoulMessage = {
-              id: data.data.id,
-              chatId: selectedChatId,
-              senderId: data.data.senderId,
-              senderName: data.data.senderName,
-              type: 'text',
-              text: data.data.text,
-              replyTo: data.data.replyTo,
-              createdAt: data.data.createdAt,
-            };
-
-            setMessages(prev => [...prev, newReplyMessage]);
-            setText('');
-            Toast.show({ type: 'success', text1: 'Reply sent' });
-          }
-        }
-      } catch (error) {
-        console.error('Failed to send reply:', error);
-        Toast.show({ type: 'error', text1: 'Failed to send reply' });
-      } finally {
-        setSending(false);
-      }
-    },
-    [selectedChatId]
-  );
+  const handleBackToConversations = () => {
+    setShowChatArea(false); // ✅ Back to list
+    setSelectedChatId(null);
+  };
 
   const isPinned = selectedChatId && pinnedChats.includes(selectedChatId);
 
+  // ✅ CONDITIONAL LOGIC (AFTER all hooks)
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+        <View style={styles.navWrapper}>
+          <Navbar
+            menuColorClass="bg-black/100"
+            highlightColorClass="bg-indigo-600 text-white"
+            activeHref="/Explore"
+            compact
+          />
+        </View>
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#6366f1" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ✅ MAIN RENDER
   return (
-    <View style={styles.root}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>🌟 Soul Chat</Text>
-        <Text style={styles.headerSubtitle}>Permanent connections</Text>
-        <TouchableOpacity
-          onPress={() => setIsNewChatModalOpen(true)}
-          style={styles.newChatBtn}
-        >
-          <Text style={styles.newChatText}>+ New</Text>
-        </TouchableOpacity>
+    <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+      <View style={styles.navWrapper}>
+        <Navbar
+          menuColorClass="bg-black/100"
+          highlightColorClass="bg-indigo-600 text-white"
+          activeHref="/Explore"
+          compact
+        />
       </View>
 
-      <View style={styles.content}>
-        {loading ? (
-          <View style={styles.loaderContainer}>
-            <ActivityIndicator size="large" color="#6366f1" />
+      {/* ✅ Show conversations OR chat area (Instagram-style) */}
+      {!showChatArea ? (
+        // Conversations List View
+        <>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>🌟 Soul Chat</Text>
+            <Text style={styles.headerSubtitle}>Permanent connections</Text>
+            <TouchableOpacity
+              onPress={() => setIsNewChatModalOpen(true)}
+              style={styles.newChatBtn}
+            >
+              <Text style={styles.newChatText}>+ New</Text>
+            </TouchableOpacity>
           </View>
-        ) : (
-          <>
-            <SoulConversationsSidebar
-              conversations={conversations}
-              selectedChatId={selectedChatId}
-              setSelectedChatId={setSelectedChatId}
-              pinnedChats={pinnedChats}
-              onNewChatClick={() => setIsNewChatModalOpen(true)}
-            />
 
-            <SoulChatArea
-              selectedChatId={selectedChatId}
-              loadingChat={loadingChat}
-              chatMeta={chatMeta}
-              messages={messages}
-              currentUserId={currentUserId}
-              text={text}
-              setText={setText}
-              sending={sending}
-              imageFile={imageFile}
-              setImageFile={setImageFile}
-              inputRef={inputRef}
-              messagesEndRef={messagesEndRef}
-              sendTextMessage={sendTextMessage}
-              sendImageMessage={sendImageMessage}
-              selectedImage={selectedImage}
-              setSelectedImage={setSelectedImage}
-              onDeleteMessage={handleDeleteMessage}
-              onReplyToMessage={handleReplyToMessage}
-              onPinChat={handlePinChat}
-              onUnpinChat={handleUnpinChat}
-              isPinned={!!isPinned}
-            />
-          </>
-        )}
-      </View>
+          <SoulConversationsSidebar
+            conversations={conversations}
+            selectedChatId={selectedChatId}
+            setSelectedChatId={handleSelectConversation} // ✅ Updated
+            pinnedChats={pinnedChats}
+            onNewChatClick={() => setIsNewChatModalOpen(true)}
+          />
+        </>
+      ) : (
+        // Chat Area View with Back Button
+        <>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleBackToConversations}
+          >
+            <Text style={styles.backButtonText}>← Back to Chats</Text>
+          </TouchableOpacity>
+
+          <SoulChatArea
+            selectedChatId={selectedChatId}
+            loadingChat={loadingChat}
+            chatMeta={chatMeta}
+            messages={messages}
+            currentUserId={currentUserId}
+            text={text}
+            setText={setText}
+            sending={sending}
+            imageFile={imageFile}
+            setImageFile={setImageFile}
+            inputRef={inputRef}
+            messagesEndRef={messagesEndRef}
+            sendTextMessage={sendTextMessage}
+            sendImageMessage={sendImageMessage}
+            selectedImage={selectedImage}
+            setSelectedImage={setSelectedImage}
+            onDeleteMessage={handleDeleteMessage}
+            onReplyToMessage={handleReplyToMessage}
+            onPinChat={handlePinChat}
+            onUnpinChat={handleUnpinChat}
+            isPinned={!!isPinned}
+          />
+        </>
+      )}
 
       {currentUserId && (
         <NewChatModal
@@ -758,9 +799,9 @@ const SoulChatPage: React.FC = () => {
           currentUserId={parseInt(currentUserId)}
         />
       )}
-      
+
       <Toast />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -768,6 +809,10 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#000000',
+  },
+  navWrapper: {
+    backgroundColor: '#000000',
+    paddingVertical: 8,
   },
   header: {
     paddingVertical: 12,
@@ -798,14 +843,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  content: {
-    flex: 1,
-    flexDirection: 'row',
-  },
   loaderContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  backButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(99,102,241,0.1)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(99,102,241,0.3)',
+  },
+  backButtonText: {
+    color: '#6366f1',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

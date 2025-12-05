@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "5830346808",
+    "project_id": "lyfari-84378",
+    "storage_bucket": "lyfari-84378.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:5830346808:android:e25acc539f5a2fc28cbecd",
+        "android_client_info": {
+          "package_name": "com.lyfariios"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbWB5o8TcAZAyai4Reh_KX1e3Baz-CkUs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

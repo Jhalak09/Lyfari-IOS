@@ -315,10 +315,13 @@ const StoriesCarousel: React.FC<StoriesCarouselProps> = ({
   return (
     <>
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.horizontalRow}
-      >
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.horizontalRow}
+          decelerationRate="fast"  // ✅ Faster deceleration
+          snapToInterval={80}       // ✅ Snap to story width (64 + 16 margin)
+          snapToAlignment="start"   // ✅ Align to start
+        >
         {/* Your Story */}
         {myStories && myStories.stories.length > 0 ? (
           <TouchableOpacity

@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RedirectHandlerScreen() {
   const { session, status } = useAuth();
@@ -60,7 +61,7 @@ export default function RedirectHandlerScreen() {
         toastMessage = 'Take the SoulTest to discover your perfect emotional matches 💫';
         toastIcon = '🧠';
       } else if (hasProfile && hasSoulTest) {
-        redirectPath = 'LyfariMain';
+        redirectPath = 'Lyfari';
       }
 
       // Show guidance toast if needed
@@ -100,15 +101,22 @@ export default function RedirectHandlerScreen() {
   }, [session, status, navigation, hasRedirected]);
 
   return (
+        <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+    
     <View style={styles.container}>
       <ActivityIndicator size="large" color="#6b21a8" style={styles.spinner} />
       <Text style={styles.title}>Completing sign-in...</Text>
       <Text style={styles.subtitle}>Please wait while we set up your session</Text>
     </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
   container: {
     flex: 1,
     backgroundColor: '#f3e8ff',

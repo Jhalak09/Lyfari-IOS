@@ -1,4 +1,4 @@
-// src/components/layout/NavbarV.tsx (React Native)
+// src/components/layout/NavbarV.tsx (React Native - Mobile Only)
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Image,
   StyleSheet,
-  Platform,
 } from 'react-native';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,7 +23,7 @@ const NAV: NavItem[] = [
   { title: 'WHISPERS', href: '/lyfari/virtual/whispers' },
 ];
 
-// Emotion colors (kept as strings, mapped to styles)
+// Emotion colors
 const emotionRingColors: Record<string, string> = {
   joy: 'joy',
   sadness: 'sadness',
@@ -56,7 +55,7 @@ function isActivePath(href: string, activeHref: string, matchPrefix: boolean) {
 function hrefToRoute(href: string): string {
   switch (href) {
     case '/lyfari':
-      return 'LyfariRoot';
+      return 'Lyfari';
     case '/lyfari/virtual/dashboard':
       return 'LyfariVirtualDashboard';
     case '/lyfari/virtual/whispers':
@@ -73,9 +72,7 @@ const NavbarV: React.FC<NavbarProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [primaryEmotionKey, setPrimaryEmotionKey] = useState<string | null>(
-    null,
-  );
+  const [primaryEmotionKey, setPrimaryEmotionKey] = useState<string | null>(null);
   const [data, setData] = useState<any>(null);
 
   const navigation = useNavigation<NavigationProp<any>>();
@@ -83,7 +80,7 @@ const NavbarV: React.FC<NavbarProps> = ({
 
   const toggleMobileMenu = () => setOpen(prev => !prev);
 
-  // Fetch soultest data (same endpoint and logic as Next.js)
+  // Fetch soultest data
   const fetchData = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
@@ -106,8 +103,7 @@ const NavbarV: React.FC<NavbarProps> = ({
     fetchData();
   }, []);
 
-  console.log('Soultest data in NavbarV:', currentUserId);
-  // Extract emotion from summary and map to key
+  // Extract emotion from summary
   useEffect(() => {
     if (!data || !data.data) return;
 
@@ -127,7 +123,7 @@ const NavbarV: React.FC<NavbarProps> = ({
     }
   }, [data]);
 
-  // Fetch current user (same logic as Next.js)
+  // Fetch current user
   useEffect(() => {
     const fetchCurrentUser = async () => {
       try {
@@ -140,64 +136,23 @@ const NavbarV: React.FC<NavbarProps> = ({
             headers: { Authorization: `Bearer ${token}` },
           },
         );
-        const json = await res.json();
-        setCurrentUserId(json?.data?.userId || json?.userId || null);
-      } catch (error) {
-        console.error('Failed to fetch current user:', error);
-      }
+         const rawdata = await res.json();
+          const data = rawdata.data;
+  
+          setCurrentUserId(data?.profile?.userId);
+        } catch (error) {
+          console.error('Failed to fetch current user:', error);
+        }
     };
     fetchCurrentUser();
   }, []);
-
- 
 
   const handleNavPress = (item: NavItem) => {
     navigation.navigate(hrefToRoute(item.href));
     setOpen(false);
   };
 
-  const renderDesktopNavItem = (item: NavItem) => {
-    const active = isActivePath(item.href, activeHref, matchPrefix);
-
-    if (item.title === 'WHISPERS') {
-      return (
-        <TouchableOpacity
-          key={item.title}
-          onPress={() => handleNavPress(item)}
-          style={[
-            styles.navItem,
-            styles.navItemBadgeWrapper,
-            active && styles.navItemActive,
-          ]}
-        >
-          <Text style={[styles.navText, active && styles.navTextActive]}>
-            {item.title}
-          </Text>
-          {whisperUnreadThreads > 0 && (
-            <View style={[styles.badge, styles.badgePurple]}>
-              <Text style={styles.badgeText}>
-                {whisperUnreadThreads > 9 ? '9+' : whisperUnreadThreads}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      );
-    }
-
-    return (
-      <TouchableOpacity
-        key={item.title}
-        onPress={() => handleNavPress(item)}
-        style={[styles.navItem, active && styles.navItemActive]}
-      >
-        <Text style={[styles.navText, active && styles.navTextActive]}>
-          {item.title}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderMobileNavItem = (item: NavItem) => {
+  const renderNavItem = (item: NavItem) => {
     const active = isActivePath(item.href, activeHref, matchPrefix);
 
     if (item.title === 'WHISPERS') {
@@ -211,7 +166,7 @@ const NavbarV: React.FC<NavbarProps> = ({
             {item.title}
           </Text>
           {whisperUnreadThreads > 0 && (
-            <View style={[styles.badge, styles.badgePurple, styles.badgeMobile]}>
+            <View style={[styles.badge, styles.badgePurple]}>
               <Text style={styles.badgeText}>
                 {whisperUnreadThreads > 9 ? '9+' : whisperUnreadThreads}
               </Text>
@@ -238,31 +193,32 @@ const NavbarV: React.FC<NavbarProps> = ({
   const emotionRingStyle = (() => {
     switch (primaryEmotionKey) {
       case 'joy':
-        return { borderColor: 'rgba(250,204,21,0.7)' }; // yellow-400
+        return { borderColor: 'rgba(250,204,21,0.7)' };
       case 'sadness':
-        return { borderColor: 'rgba(59,130,246,0.7)' }; // blue-500
+        return { borderColor: 'rgba(59,130,246,0.7)' };
       case 'fear':
-        return { borderColor: 'rgba(147,51,234,0.7)' }; // purple-600
+        return { borderColor: 'rgba(147,51,234,0.7)' };
       case 'anger':
-        return { borderColor: 'rgba(220,38,38,0.7)' }; // red-600
+        return { borderColor: 'rgba(220,38,38,0.7)' };
       case 'disgust':
-        return { borderColor: 'rgba(34,197,94,0.7)' }; // green-500
+        return { borderColor: 'rgba(34,197,94,0.7)' };
       case 'anxiety':
-        return { borderColor: 'rgba(251,146,60,0.7)' }; // orange-400
+        return { borderColor: 'rgba(251,146,60,0.7)' };
       case 'envy':
-        return { borderColor: 'rgba(34,211,238,0.7)' }; // cyan-400
+        return { borderColor: 'rgba(34,211,238,0.7)' };
       case 'embarrassment':
-        return { borderColor: 'rgba(244,114,182,0.7)' }; // pink-400
+        return { borderColor: 'rgba(244,114,182,0.7)' };
       case 'ennui':
-        return { borderColor: 'rgba(79,70,229,0.7)' }; // indigo-600
+        return { borderColor: 'rgba(79,70,229,0.7)' };
       default:
-        return { borderColor: 'rgba(129,140,248,0.7)' }; // default indigo-400
+        return { borderColor: 'rgba(129,140,248,0.7)' };
     }
   })();
 
   return (
     <View style={styles.navRoot} accessibilityLabel="Primary navigation">
-      <View style={styles.navWrapper}>
+      {/* Centered Navbar Container */}
+      <View style={styles.navContainer}>
         <View style={[styles.navInner, emotionRingStyle]}>
           {/* Brand */}
           <TouchableOpacity
@@ -272,48 +228,29 @@ const NavbarV: React.FC<NavbarProps> = ({
           >
             <Image
               source={lyfariLogo}
-              style={[
-                styles.logo,
-                compact && { width: 24, height: 24 },
-              ]}
+              style={[styles.logo, compact && { width: 20, height: 20 }]}
               resizeMode="contain"
             />
-            <Text
-              style={[
-                styles.brandText,
-                compact && { fontSize: 18 },
-              ]}
-            >
+            <Text style={[styles.brandText, compact && { fontSize: 14 }]}>
               {BRAND_NAME}
             </Text>
           </TouchableOpacity>
 
-          {/* Desktop nav (approximate; hide/show via layout where needed) */}
-          <View style={styles.navList}>
-            {NAV.map(renderDesktopNavItem)}
-          </View>
-
           {/* Mobile menu toggle */}
-          <View style={styles.mobileToggleWrapper}>
-            <TouchableOpacity
-              onPress={toggleMobileMenu}
-              style={styles.mobileToggle}
-              accessibilityLabel={open ? 'Close menu' : 'Open menu'}
-            >
-              <Text style={styles.mobileToggleIcon}>
-                {open ? '✕' : '☰'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            onPress={toggleMobileMenu}
+            style={styles.mobileToggle}
+            accessibilityLabel={open ? 'Close menu' : 'Open menu'}
+          >
+            <Text style={styles.mobileToggleIcon}>{open ? '✕' : '☰'}</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
       {/* Mobile dropdown */}
       {open && (
         <View style={styles.mobileMenuOverlay}>
-          <View style={styles.mobileMenu}>
-            {NAV.map(renderMobileNavItem)}
-          </View>
+          <View style={styles.mobileMenu}>{NAV.map(renderNavItem)}</View>
         </View>
       )}
     </View>
@@ -325,73 +262,90 @@ const styles = StyleSheet.create({
     width: '100%',
     zIndex: 50,
   },
-  navWrapper: {
+  navContainer: {
     width: '100%',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 8 : 4,
+    alignItems: 'center', // ✅ Centers the navbar
   },
   navInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'space-between',
+    borderRadius: 999, // ✅ Full pill shape
+    paddingHorizontal: 14, // ✅ Tight padding
+    paddingVertical: 8, // ✅ Compact height
+    backgroundColor: 'rgba(0,0,0,0.9)',
     borderWidth: 2,
+    alignSelf: 'center',
+    minWidth: 180, // ✅ Minimum compact width
+    maxWidth: 260, // ✅ Maximum width (tight)
   },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 4,
-    paddingVertical: 2,
   },
   logo: {
-    width: 32,
-    height: 32,
-    marginRight: 4,
+    width: 22, // ✅ Smaller logo
+    height: 22,
+    marginRight: 6, // ✅ Tight spacing
   },
   brandText: {
     color: '#ffffff',
     fontWeight: '700',
-    fontSize: 20,
-    letterSpacing: 0.6,
+    fontSize: 16, // ✅ Smaller text
+    letterSpacing: 0.5,
   },
-  navList: {
-    flexDirection: 'row',
+  mobileToggle: {
+    padding: 4, // ✅ Minimal padding
+  },
+  mobileToggleIcon: {
+    color: '#ffffff',
+    fontSize: 18, // ✅ Smaller icon
+  },
+  mobileMenuOverlay: {
+    width: '100%',
     alignItems: 'center',
-    marginLeft: 4,
-    flex: 1,
-    justifyContent: 'flex-end',
+    marginTop: 6,
   },
-  navItem: {
+  mobileMenu: {
+    width: '90%', // ✅ Slightly narrower
+    maxWidth: 360,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    borderRadius: 16,
+    paddingVertical: 8,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginHorizontal: 2,
+    borderWidth: 2,
+    borderColor: 'rgba(129,140,248,0.5)',
   },
-  navItemBadgeWrapper: {
-    position: 'relative',
+  mobileItem: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 4,
   },
-  navItemActive: {
+  mobileItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  mobileItemActive: {
     backgroundColor: '#f9fafb',
   },
-  navText: {
+  mobileText: {
     color: '#ffffff',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
   },
-  navTextActive: {
+  mobileTextActive: {
     color: '#000000',
-    fontWeight: '700',
   },
   badge: {
-    position: 'absolute',
-    top: -6,
-    right: -4,
     borderRadius: 999,
-    width: 18,
-    height: 18,
+    width: 20,
+    height: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -400,68 +354,8 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: '#ffffff',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
-  },
-  mobileToggleWrapper: {
-    marginLeft: 4,
-  },
-  mobileToggle: {
-    padding: 6,
-    borderRadius: 999,
-  },
-  mobileToggleIcon: {
-    color: '#ffffff',
-    fontSize: 20,
-  },
-  mobileMenuOverlay: {
-    width: '100%',
-    paddingHorizontal: 16,
-    marginTop: 6,
-  },
-  mobileMenu: {
-    width: '100%',
-    maxWidth: 360,
-    alignSelf: 'center',
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    borderRadius: 14,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-  },
-  mobileItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginBottom: 4,
-  },
-  mobileItemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    marginBottom: 4,
-  },
-  mobileItemActive: {
-    backgroundColor: '#f9fafb',
-  },
-  mobileText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  mobileTextActive: {
-    color: '#000000',
-  },
-  badgeMobile: {
-    position: 'relative',
-    top: 0,
-    right: 0,
-    width: 22,
-    height: 22,
   },
 });
 

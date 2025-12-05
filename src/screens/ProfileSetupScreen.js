@@ -9,6 +9,7 @@ import {
   Image,
   StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from 'react-native-config';
@@ -133,13 +134,16 @@ const ProfileSetupScreen = () => {
   }
 
   return (
+       <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
+    
     <ScrollView style={styles.bgContainer} contentContainerStyle={styles.scrollContent}>
       <View style={styles.contentContainer}>
         {/* Header */}
         <View style={styles.header}>
           <Image
-            source={require('../../assets/LYFARI-INFINITY-LOGO.png')}
+            source={require('../assets/LYFARI-INFINITY-LOGO.png')}
             style={styles.logo}
+            
             resizeMode="contain"
           />
           <Text style={styles.headerTitle}>Create Your Profile</Text>
@@ -329,10 +333,15 @@ const ProfileSetupScreen = () => {
       </View>
       <Toast />
     </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
   bgContainer: {
     flex: 1,
     backgroundColor: '#18181b',
