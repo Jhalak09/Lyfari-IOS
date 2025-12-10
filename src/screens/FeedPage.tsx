@@ -194,27 +194,29 @@ const FeedPage: React.FC = () => {
   };
 
   const openComments = async (postId: string) => {
-    setSelectedPostId(postId);
-    setLoadingComments(true);
-    setPostComments([]); // Always reset on open
-    try {
-      const token = await AsyncStorage.getItem('token');
-      const response = await fetch(
-        `${Config.NEXT_PUBLIC_BACKEND_URL}/posts/${postId}/comments`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setPostComments(data.data);
+  setSelectedPostId(postId);
+  setLoadingComments(true);
+  setPostComments([]);
+  try {
+    const token = await AsyncStorage.getItem('token');
+    const response = await fetch(
+      `${Config.NEXT_PUBLIC_BACKEND_URL}/posts/${postId}/comments`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
       }
-    } catch (error) {
-      // Optionally handle error
-    } finally {
-      setLoadingComments(false);
+    );
+    if (response.ok) {
+      const data = await response.json();
+      console.log('📥 Fetched comments:', JSON.stringify(data.data, null, 2)); // ← Add this
+      setPostComments(data.data);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+  } finally {
+    setLoadingComments(false);
+  }
+};
+
 
   const closeComments = () => {
     setSelectedPostId(null);
@@ -242,6 +244,8 @@ const FeedPage: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Comment posted, response:', JSON.stringify(data, null, 2)); // ← Add this
+
         setPostComments((prev) => [data.data, ...prev]);
         setPosts((prev) =>
           prev.map((p) =>
@@ -399,103 +403,103 @@ const FeedPage: React.FC = () => {
       </ScrollView>
 
       {/* Comments Modal */}
-      {selectedPostId && (
-        <Modal
-          visible={true}
-          transparent
-          animationType="fade"
-          onRequestClose={closeComments}
-        >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={closeComments}
-          >
-            <TouchableOpacity
-              activeOpacity={1}
-              style={styles.modalBox}
-              onPress={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Comments</Text>
-                <TouchableOpacity onPress={closeComments}>
-                  <Text style={styles.modalClose}>✕</Text>
-                </TouchableOpacity>
-              </View>
+{selectedPostId && (
+  <Modal
+    visible={true}
+    transparent
+    animationType="fade"
+    onRequestClose={closeComments}
+  >
+    <View style={styles.modalOverlay}>
+      <TouchableOpacity
+        style={styles.modalBackdrop}
+        activeOpacity={1}
+        onPress={closeComments}
+      />
+      
+      <View style={styles.modalBox} pointerEvents="box-none">
+        {/* Modal Header */}
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>Comments</Text>
+          <TouchableOpacity onPress={closeComments}>
+            <Text style={styles.modalClose}>✕</Text>
+          </TouchableOpacity>
+        </View>
 
-              {/* Comments List */}
-              <ScrollView
-                style={styles.commentsScroll}
-                contentContainerStyle={{ padding: 16 }}
-              >
-                {loadingComments ? (
-                  <View style={styles.commentsLoader}>
-                    <ActivityIndicator color="#6366F1" />
-                  </View>
-                ) : postComments.length === 0 ? (
-                  <View style={styles.noCommentsBox}>
-                    <Text style={styles.noCommentsText}>
-                      No comments yet. Be the first to comment!
+        {/* Comments List */}
+        <ScrollView
+          style={styles.commentsScroll}
+          contentContainerStyle={{ padding: 16 }}
+          nestedScrollEnabled={true}
+        >
+          {loadingComments ? (
+            <View style={styles.commentsLoader}>
+              <ActivityIndicator color="#6366F1" />
+            </View>
+          ) : postComments.length === 0 ? (
+            <View style={styles.noCommentsBox}>
+              <Text style={styles.noCommentsText}>
+                No comments yet. Be the first to comment!
+              </Text>
+            </View>
+          ) : (
+            postComments.map((comment) => (
+              <View key={comment.id} style={styles.commentRow}>
+                <Image
+                  source={{
+                    uri: comment.author?.profile?.avatarUrl
+                      ? `${Config.NEXT_PUBLIC_BACKEND_URL}${comment.author.profile.avatarUrl}`
+                      : `${Config.NEXT_PUBLIC_BACKEND_URL}/lyfari-logo.png`,
+                  }}
+                  style={styles.commentAvatar}
+                />
+                <View style={styles.commentContentBox}>
+                  <View style={styles.commentBubble}>
+                    <Text style={styles.commentAuthor}>
+                      {comment.author.name}
+                    </Text>
+                    <Text style={styles.commentText}>
+                      {comment.content}
                     </Text>
                   </View>
-                ) : (
-                  postComments.map((comment) => (
-                    <View key={comment.id} style={styles.commentRow}>
-                      <Image
-                        source={{
-                          uri: comment.author?.profile?.avatarUrl
-                            ? `${Config.NEXT_PUBLIC_BACKEND_URL}${comment.author.profile.avatarUrl}`
-                            : `${Config.NEXT_PUBLIC_BACKEND_URL}/lyfari-logo.png`,
-                        }}
-                        style={styles.commentAvatar}
-                      />
-                      <View style={styles.commentContentBox}>
-                        <View style={styles.commentBubble}>
-                          <Text style={styles.commentAuthor}>
-                            {comment.author.name}
-                          </Text>
-                          <Text style={styles.commentText}>
-                            {comment.content}
-                          </Text>
-                        </View>
-                        <Text style={styles.commentDate}>
-                          {new Date(comment.createdAt).toLocaleDateString()}
-                        </Text>
-                      </View>
-                    </View>
-                  ))
-                )}
-              </ScrollView>
-
-              {/* Comment Input */}
-              <View style={styles.commentInputRow}>
-                <TextInput
-                  value={commentText}
-                  onChangeText={setCommentText}
-                  onSubmitEditing={submitComment}
-                  placeholder="Add a comment..."
-                  placeholderTextColor="#9ca3af"
-                  style={styles.commentInput}
-                />
-                <TouchableOpacity
-                  onPress={submitComment}
-                  disabled={!commentText.trim() || submittingComment}
-                  style={[
-                    styles.commentSendBtn,
-                    (!commentText.trim() || submittingComment) &&
-                      styles.commentSendBtnDisabled,
-                  ]}
-                >
-                  <Text style={styles.commentSendText}>
-                    {submittingComment ? '...' : 'Post'}
+                  <Text style={styles.commentDate}>
+                    {new Date(comment.createdAt).toLocaleDateString()}
                   </Text>
-                </TouchableOpacity>
+                </View>
               </View>
-            </TouchableOpacity>
+            ))
+          )}
+        </ScrollView>
+
+        {/* Comment Input */}
+        <View style={styles.commentInputRow}>
+          <TextInput
+            value={commentText}
+            onChangeText={setCommentText}
+            onSubmitEditing={submitComment}
+            placeholder="Add a comment..."
+            placeholderTextColor="#9ca3af"
+            style={styles.commentInput}
+          />
+          <TouchableOpacity
+            onPress={submitComment}
+            disabled={!commentText.trim() || submittingComment}
+            style={[
+              styles.commentSendBtn,
+              (!commentText.trim() || submittingComment) &&
+                styles.commentSendBtnDisabled,
+            ]}
+          >
+            <Text style={styles.commentSendText}>
+              {submittingComment ? '...' : 'Post'}
+            </Text>
           </TouchableOpacity>
-        </Modal>
-      )}
+        </View>
+      </View>
+    </View>
+  </Modal>
+)}
+
     </SafeAreaView>
   );
 };
@@ -622,22 +626,33 @@ const styles = StyleSheet.create({
   captionUser: { fontWeight: '700', color: '#ffffff' },
 
   modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
+  flex: 1,
+  backgroundColor: 'rgba(0,0,0,0.85)',
+  justifyContent: 'center',
+  alignItems: 'center',
+  padding: 16,
+},
   modalBox: {
-    width: '100%',
-    maxWidth: 672,
-    maxHeight: '80%',
-    backgroundColor: '#020617',
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: 'rgba(129,140,248,0.3)',
-    overflow: 'hidden',
-  },
+  width: '100%',
+  maxWidth: 672,
+  height: '60%',
+  backgroundColor: '#020617',
+  borderRadius: 16,
+  borderWidth: 2,
+  borderColor: 'rgba(129,140,248,0.3)',
+  overflow: 'hidden',
+},
+commentsScroll: { 
+  flex: 1,
+  minHeight: 200,  // ✅ Added minimum height so it always renders
+},
+modalBackdrop: {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+},
   modalHeader: {
     padding: 16,
     borderBottomWidth: 1,
@@ -648,7 +663,6 @@ const styles = StyleSheet.create({
   },
   modalTitle: { color: '#ffffff', fontSize: 20, fontWeight: '700' },
   modalClose: { color: '#e5e7eb', fontSize: 24 },
-  commentsScroll: { flex: 1 },
   commentsLoader: {
     paddingVertical: 32,
     alignItems: 'center',

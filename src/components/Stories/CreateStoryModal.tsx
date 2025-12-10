@@ -10,7 +10,9 @@ import {
   ActivityIndicator,
   TextInput,
   StyleSheet,
+  ScrollView, // ✅ added
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { launchImageLibrary, Asset } from 'react-native-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from 'react-native-config';
@@ -39,6 +41,7 @@ const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
       const result = await launchImageLibrary({
         mediaType: 'mixed',
         selectionLimit: 1,
+        quality: 0.7,
       });
 
       if (result.didCancel) {
@@ -70,7 +73,7 @@ const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
         setPreview(file.uri);
       }
     } catch (error) {
-        console.error('Error selecting media:', error);
+      console.error('Error selecting media:', error);
       Toast.show({
         type: 'error',
         text1: 'Failed to open media picker',
@@ -79,81 +82,104 @@ const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
   };
 
   const handleSubmit = async () => {
-    if (!media || !media.uri) {
+  if (!media || !media.uri) {
+    Toast.show({
+      type: 'error',
+      text1: 'Please select an image or video',
+    });
+    return;
+  }
+
+  try {
+    setIsLoading(true);
+
+    const token = await AsyncStorage.getItem('token');
+    if (!token) {
       Toast.show({
         type: 'error',
-        text1: 'Please select an image or video',
+        text1: 'Not authenticated',
       });
+      setIsLoading(false);
       return;
     }
 
-    try {
-      setIsLoading(true);
+    const formData = new FormData();
 
-      const token = await AsyncStorage.getItem('token');
-      if (!token) {
-        Toast.show({
-          type: 'error',
-          text1: 'Not authenticated',
-        });
-        setIsLoading(false);
-        return;
-      }
+    const fileName =
+      media.fileName || `story.${media.type?.includes('video') ? 'mp4' : 'jpg'}`;
 
-      const formData = new FormData();
+    formData.append('media', {
+      uri: media.uri,
+      type: media.type || 'application/octet-stream',
+      name: fileName,
+    } as any);
 
-      const fileName =
-        media.fileName || `story.${media.type?.includes('video') ? 'mp4' : 'jpg'}`;
-
-      formData.append('media', {
-        uri: media.uri,
-        type: media.type || 'application/octet-stream',
-        name: fileName,
-      } as any);
-
-      if (textOverlay) {
-        formData.append('caption', textOverlay);
-      }
-
-      const res = await fetch(`${Config.NEXT_PUBLIC_BACKEND_URL}/stories`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (res.ok) {
-        Toast.show({
-          type: 'success',
-          text1: 'Story posted successfully! 🎉',
-        });
-        setMedia(null);
-        setPreview('');
-        setTextOverlay('');
-        onCreated();
-        onClose();
-      } else {
-        let message = 'Failed to create story';
-        try {
-          const errorJson = await res.json();
-          if (errorJson?.message) message = errorJson.message;
-        } catch {}
-        Toast.show({
-          type: 'error',
-          text1: message,
-        });
-      }
-    } catch (error) {
-        console.error('Error creating story:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Failed to create story',
-      });
-    } finally {
-      setIsLoading(false);
+    if (textOverlay) {
+      formData.append('caption', textOverlay);
     }
-  };
+
+    // ✅ Use XMLHttpRequest instead of fetch to avoid "Already read"
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.open('POST', `${Config.NEXT_PUBLIC_BACKEND_URL}/stories`);
+
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      // Do NOT set Content-Type manually; RN will add correct multipart boundary
+
+      xhr.onload = () => {
+        // 2xx = success
+        if (xhr.status >= 200 && xhr.status < 300) {
+          Toast.show({
+            type: 'success',
+            text1: 'Story posted successfully! 🎉',
+          });
+          setMedia(null);
+          setPreview('');
+          setTextOverlay('');
+          onCreated();
+          onClose();
+          resolve();
+        } else {
+          // Try to extract backend error message if present
+          try {
+            const json = JSON.parse(xhr.responseText || '{}');
+            const message = json.message || 'Failed to create story';
+            Toast.show({
+              type: 'error',
+              text1: message,
+            });
+          } catch {
+            Toast.show({
+              type: 'error',
+              text1: 'Failed to create story',
+            });
+          }
+          reject(new Error(`Failed to create story (${xhr.status})`));
+        }
+      };
+
+      xhr.onerror = () => {
+        Toast.show({
+          type: 'error',
+          text1: 'Network error while creating story',
+        });
+        reject(new Error('Network error while creating story'));
+      };
+
+      xhr.send(formData);
+    });
+  } catch (error: any) {
+    console.log('RAW story error object:', error);
+    console.log('RAW story error name/message:', error?.name, error?.message);
+    console.error('Error creating story:', error);
+    // Toast already shown in xhr.onload/onerror
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
 
   const handleChangeMedia = () => {
     setMedia(null);
@@ -179,7 +205,13 @@ const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          <View style={styles.body}>
+          {/* ✅ Body is now scrollable */}
+          <ScrollView
+            style={styles.body}
+            contentContainerStyle={styles.bodyContent}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
             {preview ? (
               <>
                 {/* Preview */}
@@ -261,7 +293,7 @@ const CreateStoryModal: React.FC<CreateStoryModalProps> = ({
                 </Text>
               </TouchableOpacity>
             )}
-          </View>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -297,6 +329,10 @@ const styles = StyleSheet.create({
   headerClose: { fontSize: 18, color: '#6b7280' },
   body: {
     padding: 14,
+  },
+  // ✅ added: so content has some bottom space when scrolling
+  bodyContent: {
+    paddingBottom: 16,
   },
   previewBox: {
     width: '100%',

@@ -20,7 +20,8 @@ import { PostDetail } from '../components/Posts/PostDetail';
 import { EditProfileModal } from '../components/Profile/EditProfileModal';
 import { UploadPostModal } from '../components/Profile/UploadPostModal';
 import { Post } from '../types/post.types';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import { RootStackParamList } from '../navigation/AppNavigator';  
+
 
 type Profile = {
   id: string | number;
@@ -294,6 +295,7 @@ const ProfilePage: React.FC = () => {
           <ProfilePostsGrid
             posts={posts}
             onPostClick={post => setSelectedPost(post)}
+            scrollEnabled={false} 
           />
         ) : (
           <View style={styles.privateBox}>

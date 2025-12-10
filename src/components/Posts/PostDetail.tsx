@@ -16,6 +16,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from 'react-native-config';
 import { Post } from '../../types/post.types';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -209,7 +210,8 @@ export const PostDetail: React.FC<PostDetailProps> = ({ post, onClose }) => {
   const isReel = post.type === 'VIDEO' || post.type === 'REEL';
 
   return (
-    <Modal visible transparent animationType="fade">
+
+    <Modal presentationStyle="pageSheet">
       <View style={styles.overlay}>
         <View style={styles.container}>
           {/* Header */}

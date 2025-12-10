@@ -27,6 +27,7 @@ export const AuthProvider = ({ children }) => {
 
   const configureGoogleSignIn = () => {
     GoogleSignin.configure({
+      iosClientId: Config.GOOGLE_IOS_CLIENT_ID,
       webClientId: Config.GOOGLE_CLIENT_ID, // Web Client ID (for backend)
       offlineAccess: true,
       forceCodeForRefreshToken: true, // ✅ ADD THIS

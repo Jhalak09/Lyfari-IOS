@@ -16,6 +16,9 @@ import {
 import { launchImageLibrary } from 'react-native-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from 'react-native-config';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import ImageResizer from 'react-native-image-resizer';
+
 
 type UploadMode = 'IMAGE' | 'VIDEO' | 'REEL';
 
@@ -54,63 +57,71 @@ export const UploadPostModal: React.FC<UploadPostModalProps> = ({
   };
 
   const handleFileSelect = async () => {
-    try {
-      const result = await launchImageLibrary({
-        mediaType: mode === 'IMAGE' ? 'photo' : 'video',
-        quality: 0.8,
-        selectionLimit: mode === 'IMAGE' ? 10 : 1,
-      });
+  try {
+    const result = await launchImageLibrary({
+      mediaType: mode === 'IMAGE' ? 'photo' : 'video',
+      quality: 0.7, // ✅ Reduced from 0.8 to compress more
+      maxWidth: 1920, // ✅ Limit max dimensions
+      maxHeight: 1920,
+      selectionLimit: mode === 'IMAGE' ? 10 : 1,
+      includeBase64: false, // ✅ Don't include base64
+    });
 
-      if (result.didCancel) return;
+    if (result.didCancel) return;
 
-      const assets = result.assets || [];
-      if (assets.length === 0) return;
+    const assets = result.assets || [];
+    if (assets.length === 0) return;
 
-      if (mode === 'IMAGE') {
-        const imageFiles = assets.filter(a => a.type?.startsWith('image/'));
-        if (imageFiles.length === 0) {
-          Alert.alert('Error', 'Image posts require at least one image');
-          return;
-        }
-        if (imageFiles.length > 10) {
-          Alert.alert('Error', 'Maximum 10 images allowed');
-          return;
-        }
-
-        const newMedia: MediaItem[] = imageFiles.map(asset => ({
-          file: asset,
-          preview: asset.uri || '',
-          type: 'image',
-        }));
-        setMediaItems(newMedia);
-      } else {
-        const videoFile = assets[0];
-        if (!videoFile.type?.startsWith('video/')) {
-          Alert.alert('Error', 'Video posts require a video file');
-          return;
-        }
-
-        if (mode === 'REEL' && videoFile.duration && videoFile.duration > 90) {
-          Alert.alert('Error', 'Reels must be 90 seconds or less');
-          return;
-        }
-
-        setMediaItems([
-          {
-            file: videoFile,
-            preview: videoFile.uri || '',
-            type: 'video',
-            duration: videoFile.duration,
-          },
-        ]);
+    if (mode === 'IMAGE') {
+      const imageFiles = assets.filter(a => a.type?.startsWith('image/'));
+      if (imageFiles.length === 0) {
+        Alert.alert('Error', 'Image posts require at least one image');
+        return;
+      }
+      if (imageFiles.length > 10) {
+        Alert.alert('Error', 'Maximum 10 images allowed');
+        return;
       }
 
-      setStep('edit');
-    } catch (error) {
-      console.error('Error selecting files:', error);
-      Alert.alert('Error', 'Failed to select files');
+      const newMedia: MediaItem[] = imageFiles.map(asset => ({
+        file: {
+          uri: asset.uri,
+          type: asset.type,
+          fileName: asset.fileName,
+        },
+        preview: asset.uri || '',
+        type: 'image',
+      }));
+      setMediaItems(newMedia);
+    } else {
+      const videoFile = assets[0];
+      if (!videoFile.type?.startsWith('video/')) {
+        Alert.alert('Error', 'Video posts require a video file');
+        return;
+      }
+
+      if (mode === 'REEL' && videoFile.duration && videoFile.duration > 90) {
+        Alert.alert('Error', 'Reels must be 90 seconds or less');
+        return;
+      }
+
+      setMediaItems([
+        {
+          file: videoFile,
+          preview: videoFile.uri || '',
+          type: 'video',
+          duration: videoFile.duration,
+        },
+      ]);
     }
-  };
+
+    setStep('edit');
+  } catch (error) {
+    console.error('Error selecting files:', error);
+    Alert.alert('Error', 'Failed to select files');
+  }
+};
+
 
   const removeMedia = (index: number) => {
     const updated = mediaItems.filter((_, i) => i !== index);
@@ -123,56 +134,81 @@ export const UploadPostModal: React.FC<UploadPostModalProps> = ({
   };
 
   const handleSubmit = async () => {
-    if (mediaItems.length === 0) {
-      Alert.alert('Error', 'Please select at least one file');
+  if (mediaItems.length === 0) {
+    Alert.alert('Error', 'Please select at least one file');
+    return;
+  }
+
+  setUploading(true);
+
+  try {
+    const formData = new FormData();
+
+    if (caption.trim()) {
+      formData.append('caption', caption);
+    }
+    formData.append('type', mode!);
+
+    // Build FormData exactly as before
+    for (const media of mediaItems) {
+      formData.append('media', {
+        uri: media.file.uri,
+        type: media.file.type || 'image/jpeg',
+        name: media.file.fileName || 'media.jpg',
+      } as any);
+    }
+
+    const token = await AsyncStorage.getItem('token');
+    if (!token) {
+      Alert.alert('Error', 'Not authenticated');
+      setUploading(false);
       return;
     }
 
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      if (caption.trim()) {
-        formData.append('caption', caption);
-      }
-      formData.append('type', mode!);
+    // ✅ Use XMLHttpRequest instead of fetch to avoid "Already read"
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
 
-      // ⚠️ NOTE: Unlike Next.js version, this uploads original images without cropping
-      // To add cropping, consider using react-native-image-crop-picker
-      for (const media of mediaItems) {
-        formData.append('media', {
-          uri: media.file.uri,
-          type: media.file.type || 'image/jpeg',
-          name: media.file.fileName || 'media.jpg',
-        } as any);
-      }
+      xhr.open('POST', `${Config.NEXT_PUBLIC_BACKEND_URL}/posts`);
 
-      const token = await AsyncStorage.getItem('token');
-      const response = await fetch(
-        `${Config.NEXT_PUBLIC_BACKEND_URL}/posts`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        },
-      );
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      // Do NOT set Content-Type manually; RN will add correct multipart boundary
 
-      if (response.ok) {
-        onPostCreated();
-        resetModal();
-        onClose();
-      } else {
-        const error = await response.json();
-        Alert.alert('Error', error.message || 'Failed to create post');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      Alert.alert('Error', 'Failed to create post');
-    } finally {
-      setUploading(false);
-    }
-  };
+      xhr.onload = () => {
+        // 2xx = success
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          // Try to extract backend error message if present
+          try {
+            const json = JSON.parse(xhr.responseText || '{}');
+            const message = json.message || `Failed to create post (${xhr.status})`;
+            reject(new Error(message));
+          } catch {
+            reject(new Error(`Failed to create post (${xhr.status})`));
+          }
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Network error while uploading post'));
+      };
+
+      xhr.send(formData);
+    });
+
+    // If we get here, upload succeeded
+    onPostCreated();
+    resetModal();
+    onClose();
+  } catch (error: any) {
+    console.log('Post upload error:', error?.message || error);
+    Alert.alert('Error', error?.message || 'Failed to create post');
+  } finally {
+    setUploading(false);
+  }
+};
+
 
   const resetModal = () => {
     setMode(null);
@@ -184,10 +220,21 @@ export const UploadPostModal: React.FC<UploadPostModalProps> = ({
 
   const currentMedia = mediaItems[selectedIndex];
 
+
   return (
-    <Modal visible={isOpen} transparent animationType="slide">
+    <Modal
+  visible={isOpen}
+  transparent={false}
+  animationType="slide"
+  onRequestClose={onClose}
+  presentationStyle="pageSheet"
+>
+
       <View style={styles.overlay}>
-        <View style={styles.container}>
+        <SafeAreaView
+          style={styles.container}
+          edges={['top', 'bottom', 'left', 'right']}
+        >
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity
@@ -290,12 +337,6 @@ export const UploadPostModal: React.FC<UploadPostModalProps> = ({
                   </View>
                 )}
 
-                {/* ⚠️ NOTE: Image cropping not implemented */}
-                {/* To add cropping functionality, consider using:
-                    - react-native-image-crop-picker
-                    - react-native-image-editor
-                */}
-
                 {mode === 'IMAGE' && mediaItems.length > 1 && (
                   <>
                     <View style={styles.indicators}>
@@ -351,7 +392,7 @@ export const UploadPostModal: React.FC<UploadPostModalProps> = ({
               </>
             )}
           </ScrollView>
-        </View>
+        </SafeAreaView>
       </View>
     </Modal>
   );
@@ -361,7 +402,6 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.9)',
-    justifyContent: 'center',
   },
   container: {
     flex: 1,
@@ -374,6 +414,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#374151',
+    minHeight: 60,
   },
   backBtn: { fontSize: 24, color: '#ffffff' },
   headerTitle: {
