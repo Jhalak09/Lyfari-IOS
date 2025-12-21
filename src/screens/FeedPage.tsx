@@ -83,6 +83,24 @@ const FeedPage: React.FC = () => {
     })();
   }, []);
 
+  const handleStoryCreated = async () => {
+  try {
+    const token = await AsyncStorage.getItem('token');
+    const res = await fetch(
+      `${Config.NEXT_PUBLIC_BACKEND_URL}/stories/feed`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    if (res.ok) {
+      const data = await res.json();
+      setStories(data.data || []);
+    }
+  } catch (e) {
+    console.log('Failed to fetch stories');
+  }
+};
   async function fetchFeed() {
     try {
       setLoading(true);
@@ -289,7 +307,7 @@ const FeedPage: React.FC = () => {
         </View>
 
         <View style={styles.storiesWrapper}>
-          <StoriesCarousel stories={stories} currentUserId={currentUserId} />
+          <StoriesCarousel stories={stories} currentUserId={currentUserId} onRefresh={handleStoryCreated} />
         </View>
 
         <View style={styles.feedHeader}>

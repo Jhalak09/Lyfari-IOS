@@ -42,7 +42,7 @@ interface Story {
 interface StoriesCarouselProps {
   stories: Story[];
   currentUserId?: number;
-  onRefresh?: () => void; // ✅ ADDED: Callback to refresh stories
+  onRefresh: () => void; // ✅ ADDED: Callback to refresh stories
 }
 
 const AUTO_DURATION = 5000;
@@ -316,13 +316,6 @@ const StoriesCarousel: React.FC<StoriesCarouselProps> = ({
     }
   };
 
-  // ✅ ADDED: Handle story created callback
-  const handleStoryCreated = () => {
-    if (onRefresh) {
-      onRefresh(); // Trigger parent to refresh stories
-    }
-  };
-
   const currentGroup =
     selectedUserIndex !== null ? userGroups[selectedUserIndex] : null;
 
@@ -456,8 +449,7 @@ const StoriesCarousel: React.FC<StoriesCarouselProps> = ({
       <CreateStoryModal
         visible={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onCreated={handleStoryCreated} // ✅ CHANGED: Call refresh handler
-      />
+        onCreated={onRefresh}      />
     </>
   );
 };

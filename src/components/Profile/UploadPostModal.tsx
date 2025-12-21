@@ -17,7 +17,6 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from 'react-native-config';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import ImageResizer from 'react-native-image-resizer';
 
 
 type UploadMode = 'IMAGE' | 'VIDEO' | 'REEL';
