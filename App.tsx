@@ -7,6 +7,13 @@ import { AuthProvider } from './src/auth/AuthContext';
 import { NotificationsProvider } from './src/contexts/NotificationsContext';
 import Config from 'react-native-config';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
+import { Buffer } from 'buffer';
+
+
+if (typeof global.atob === 'undefined') {
+  // @ts-ignore
+  global.atob = (data: string) => Buffer.from(data, 'base64').toString('binary');
+}
 
 console.log('🚀 App.tsx loaded');
 console.log('✅ NotificationsProvider:', NotificationsProvider);

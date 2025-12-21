@@ -17,6 +17,9 @@ import ConversationsSidebar from '../components/Whispers/ConversationsSidebar';
 import ChatArea from '../components/Whispers/ChatArea';
 import NavbarV from '../components/layout/NavbarV';
 import { jwtDecode } from 'jwt-decode'; // ✅ Use jwt-decode library
+import { useFocusEffect } from '@react-navigation/native';
+import { useNotificationsContext } from '../contexts/NotificationsContext';
+
 
 // Interfaces
 interface WhisperConversation {
@@ -69,10 +72,20 @@ export default function WhispersPage() {
   const [currentUserName, setCurrentUserName] = useState<string | null>(null);
   const [pinnedChats, setPinnedChats] = useState<string[]>([]);
 
+    const { markThreadAsRead, refreshThreadCounts } = useNotificationsContext();
+
+
   // ✅ ALL REFS
   const inputRef = useRef<TextInput>(null);
   const messagesEndRef = useRef<View>(null);
   const socketRef = useRef<Socket | null>(null);
+
+   useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 Whispers screen focused - refreshing thread counts');
+      refreshThreadCounts();
+    }, [refreshThreadCounts])
+  );
 
   // ✅ ALL CALLBACKS
   const fetchUnreadCount = useCallback(async () => {
@@ -383,16 +396,20 @@ export default function WhispersPage() {
       const messagesData = await messagesRes.json();
 
       setChatMeta(metaData?.data);
-
       const messagesList: WhisperMessage[] = messagesData?.data || [];
       setMessages(messagesList);
+
+      // ✅ CRITICAL: Mark this thread as read
+      console.log(`📖 Marking Whisper thread ${chatId} as read`);
+      await markThreadAsRead('WHISPER', parseInt(chatId));
     } catch (error) {
       console.error('Failed to load chat:', error);
       Toast.show({ type: 'error', text1: 'Failed to load chat messages' });
     } finally {
       setLoadingChat(false);
     }
-  }, []);
+  }, [markThreadAsRead]); // ✅ Add markThreadAsRead to dependency array
+
 
   // ✅ Handle conversation selection (mobile)
   const handleSelectConversation = (chatId: string) => {

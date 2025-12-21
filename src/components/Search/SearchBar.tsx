@@ -79,7 +79,7 @@ export default function SearchBar() {
 
   const handleProfileClick = (userId: number) => {
     // Equivalent to router.push(`/lyfari/real/profile/${userId}`)
-    navigation.navigate('RealProfile', { userId });
+    navigation.navigate('Profile', { userId });
     setShowResults(false);
     setQuery('');
   };

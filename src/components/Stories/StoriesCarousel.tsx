@@ -21,6 +21,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from 'react-native-config';
 import CreateStoryModal from './CreateStoryModal';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface Story {
   id: number;
@@ -41,6 +42,7 @@ interface Story {
 interface StoriesCarouselProps {
   stories: Story[];
   currentUserId?: number;
+  onRefresh: () => void; // ✅ ADDED: Callback to refresh stories
 }
 
 const AUTO_DURATION = 5000;
@@ -75,100 +77,104 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
     : undefined;
 
   return (
-    <Modal visible transparent animationType="fade">
-      <View style={styles.viewerOverlay}>
-        <TouchableOpacity
-          style={styles.viewerClose}
-          onPress={onClose}
-        >
-          <Text style={styles.viewerCloseText}>✕</Text>
-        </TouchableOpacity>
-
-        <View style={styles.viewerContainer}>
-          {/* Progress bars */}
-          <View style={styles.progressRow}>
-            {currentGroup.stories.map((_, idx) => (
-              <View key={idx} style={styles.progressTrack}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    idx < currentStoryIndex && { width: '100%' },
-                    idx === currentStoryIndex &&
-                      !isPaused && { width: '100%' },
-                  ]}
-                />
-              </View>
-            ))}
-          </View>
-
-          {/* User info */}
-          <View style={styles.viewerHeader}>
-            {avatarUri ? (
-              <Image
-                source={{ uri: avatarUri }}
-                style={styles.viewerAvatar}
-              />
-            ) : (
-              <View style={styles.viewerAvatarFallback}>
-                <Text style={styles.viewerAvatarInitial}>
-                  {currentGroup.user.name?.[0]?.toUpperCase() || '?'}
-                </Text>
-              </View>
-            )}
-            <Text style={styles.viewerUserName}>
-              {currentGroup.user.name}
-            </Text>
-            <Text style={styles.viewerTime}>
-              {new Date(currentStory.expiresAt).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </Text>
-          </View>
-
-          {/* Story content */}
+    <Modal 
+      visible 
+      animationType="slide" // ✅ CHANGED: from "fade" to "slide"
+      presentationStyle="formSheet" // ✅ ADDED: pageSheet presentation
+    >
+        <View style={styles.viewerOverlay}>
           <TouchableOpacity
-            activeOpacity={1}
-            style={styles.viewerMediaBox}
-            onPress={e => onTap(e.nativeEvent.locationX)}
+            style={styles.viewerClose}
+            onPress={onClose}
           >
-            {currentStory.imageUrl ? (
-              <Image
-                source={{ uri: currentStory.imageUrl }}
-                style={styles.viewerMedia}
-                resizeMode="contain"
-              />
-            ) : currentStory.videoUrl ? (
-              <View style={styles.viewerVideoPlaceholder}>
-                <Text style={styles.viewerVideoText}>Video</Text>
-              </View>
-            ) : null}
+            <Text style={styles.viewerCloseText}>✕</Text>
           </TouchableOpacity>
 
-          {currentStory.caption ? (
-            <View style={styles.viewerCaptionBox}>
-              <Text style={styles.viewerCaptionText}>
-                {currentStory.caption}
+          <View style={styles.viewerContainer}>
+            {/* Progress bars */}
+            <View style={styles.progressRow}>
+              {currentGroup.stories.map((_, idx) => (
+                <View key={idx} style={styles.progressTrack}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      idx < currentStoryIndex && { width: '100%' },
+                      idx === currentStoryIndex &&
+                        !isPaused && { width: '100%' },
+                    ]}
+                  />
+                </View>
+              ))}
+            </View>
+
+            {/* User info */}
+            <View style={styles.viewerHeader}>
+              {avatarUri ? (
+                <Image
+                  source={{ uri: avatarUri }}
+                  style={styles.viewerAvatar}
+                />
+              ) : (
+                <View style={styles.viewerAvatarFallback}>
+                  <Text style={styles.viewerAvatarInitial}>
+                    {currentGroup.user.name?.[0]?.toUpperCase() || '?'}
+                  </Text>
+                </View>
+              )}
+              <Text style={styles.viewerUserName}>
+                {currentGroup.user.name}
+              </Text>
+              <Text style={styles.viewerTime}>
+                {new Date(currentStory.expiresAt).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
               </Text>
             </View>
-          ) : null}
 
-          {/* Bottom actions */}
-          <View style={styles.viewerBottomRow}>
-            <TextInput
-              placeholder="Send message"
-              placeholderTextColor="#9ca3af"
-              style={styles.viewerInput}
-            />
+            {/* Story content */}
             <TouchableOpacity
-              onPress={() => onLike(currentStory.id)}
-              style={styles.viewerLikeBtn}
+              activeOpacity={1}
+              style={styles.viewerMediaBox}
+              onPress={e => onTap(e.nativeEvent.locationX)}
             >
-              <Text style={styles.viewerLikeIcon}>❤️</Text>
+              {currentStory.imageUrl ? (
+                <Image
+                  source={{ uri: currentStory.imageUrl }}
+                  style={styles.viewerMedia}
+                  resizeMode="contain"
+                />
+              ) : currentStory.videoUrl ? (
+                <View style={styles.viewerVideoPlaceholder}>
+                  <Text style={styles.viewerVideoText}>Video</Text>
+                </View>
+              ) : null}
             </TouchableOpacity>
+
+            {currentStory.caption ? (
+              <View style={styles.viewerCaptionBox}>
+                <Text style={styles.viewerCaptionText}>
+                  {currentStory.caption}
+                </Text>
+              </View>
+            ) : null}
+
+            {/* Bottom actions */}
+            <View style={styles.viewerBottomRow}>
+              <TextInput
+                placeholder="Send message"
+                placeholderTextColor="#9ca3af"
+                style={styles.viewerInput}
+              />
+              <TouchableOpacity
+                onPress={() => onLike(currentStory.id)}
+                style={styles.viewerLikeBtn}
+              >
+                <Text style={styles.viewerLikeIcon}>❤️</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
     </Modal>
   );
 };
@@ -176,6 +182,7 @@ const StoryViewer: React.FC<StoryViewerProps> = ({
 const StoriesCarousel: React.FC<StoriesCarouselProps> = ({
   stories,
   currentUserId,
+  onRefresh, // ✅ ADDED: Receive refresh callback
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedUserIndex, setSelectedUserIndex] = useState<number | null>(
@@ -309,19 +316,21 @@ const StoriesCarousel: React.FC<StoriesCarouselProps> = ({
     }
   };
 
+
+
   const currentGroup =
     selectedUserIndex !== null ? userGroups[selectedUserIndex] : null;
 
   return (
     <>
       <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.horizontalRow}
-          decelerationRate="fast"  // ✅ Faster deceleration
-          snapToInterval={80}       // ✅ Snap to story width (64 + 16 margin)
-          snapToAlignment="start"   // ✅ Align to start
-        >
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.horizontalRow}
+        decelerationRate="fast"
+        snapToInterval={80}
+        snapToAlignment="start"
+      >
         {/* Your Story */}
         {myStories && myStories.stories.length > 0 ? (
           <TouchableOpacity
@@ -442,13 +451,18 @@ const StoriesCarousel: React.FC<StoriesCarouselProps> = ({
       <CreateStoryModal
         visible={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onCreated={() => {}}
+        onCreated={onRefresh} // ✅ CHANGED: Call refresh handler
       />
     </>
   );
 };
 
+// Styles remain exactly the same
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#020617',
+  },
   horizontalRow: {
     paddingVertical: 8,
     paddingHorizontal: 4,
@@ -583,7 +597,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 2,
     borderRadius: 999,
-    backgroundColor: '#4b5563',
+    backgroundColor: '#6325ffff',
     overflow: 'hidden',
   },
   progressFill: {

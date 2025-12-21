@@ -1,4 +1,4 @@
-// src/components/Posts/ProfilePostsGrid.tsx (React Native - Updated)
+// src/components/Posts/ProfilePostsGrid.tsx (React Native - FIXED)
 
 import React, { useState } from 'react';
 import {
@@ -15,23 +15,22 @@ import PostCard from './PostCard';
 interface ProfilePostsGridProps {
   posts: Post[];
   onPostClick: (post: Post) => void;
+  scrollEnabled?: boolean;
 }
 
 const ProfilePostsGrid: React.FC<ProfilePostsGridProps> = ({
   posts,
   onPostClick,
+  scrollEnabled = true,
 }) => {
   const [activeTab, setActiveTab] = useState<'posts' | 'reels'>('posts');
 
-  // ✅ Separate posts and reels (same logic as Next.js)
   const imagePosts = posts.filter(
     post => post.type === 'IMAGE' || post.type === 'VIDEO'
   );
   const videoReels = posts.filter(post => post.type === 'REEL');
-
   const displayPosts = activeTab === 'posts' ? imagePosts : videoReels;
 
-  // Empty state when no posts at all
   if (posts.length === 0) {
     return (
       <View style={styles.emptyContainer}>
@@ -54,9 +53,7 @@ const ProfilePostsGrid: React.FC<ProfilePostsGridProps> = ({
     <View style={styles.container}>
       {/* Header with tabs */}
       <View style={styles.header}>
-        {/* Tabs Container */}
         <View style={styles.tabsContainer}>
-          {/* POSTS Tab */}
           <TouchableOpacity
             onPress={() => setActiveTab('posts')}
             style={[
@@ -65,18 +62,13 @@ const ProfilePostsGrid: React.FC<ProfilePostsGridProps> = ({
             ]}
           >
             <View style={styles.tabContent}>
-              <Text
-                style={[
-                  styles.tabIcon,
-                  activeTab === 'posts' ? styles.tabTextActive : styles.tabTextInactive,
-                ]}
-              >
-                ▦
-              </Text>
+              <Text style={styles.tabIcon}>📷</Text>
               <Text
                 style={[
                   styles.tabText,
-                  activeTab === 'posts' ? styles.tabTextActive : styles.tabTextInactive,
+                  activeTab === 'posts'
+                    ? styles.tabTextActive
+                    : styles.tabTextInactive,
                 ]}
               >
                 POSTS
@@ -85,7 +77,6 @@ const ProfilePostsGrid: React.FC<ProfilePostsGridProps> = ({
             </View>
           </TouchableOpacity>
 
-          {/* REELS Tab */}
           <TouchableOpacity
             onPress={() => setActiveTab('reels')}
             style={[
@@ -94,18 +85,13 @@ const ProfilePostsGrid: React.FC<ProfilePostsGridProps> = ({
             ]}
           >
             <View style={styles.tabContent}>
-              <Text
-                style={[
-                  styles.tabIcon,
-                  activeTab === 'reels' ? styles.tabTextActive : styles.tabTextInactive,
-                ]}
-              >
-                ▶
-              </Text>
+              <Text style={styles.tabIcon}>🎬</Text>
               <Text
                 style={[
                   styles.tabText,
-                  activeTab === 'reels' ? styles.tabTextActive : styles.tabTextInactive,
+                  activeTab === 'reels'
+                    ? styles.tabTextActive
+                    : styles.tabTextInactive,
                 ]}
               >
                 REELS
@@ -115,7 +101,6 @@ const ProfilePostsGrid: React.FC<ProfilePostsGridProps> = ({
           </TouchableOpacity>
         </View>
 
-        {/* Count on right */}
         <Text style={styles.totalCount}>{displayPosts.length}</Text>
       </View>
 
@@ -139,10 +124,12 @@ const ProfilePostsGrid: React.FC<ProfilePostsGridProps> = ({
           renderItem={renderPost}
           keyExtractor={item => String(item.id)}
           numColumns={3}
-          key="3-columns" // Force re-render if numColumns changes
+          key="3-columns"
           contentContainerStyle={styles.gridContent}
           columnWrapperStyle={styles.columnWrapper}
           showsVerticalScrollIndicator={false}
+          scrollEnabled={scrollEnabled}
+          nestedScrollEnabled={true} // ✅ ADDED: Allow nested scrolling on Android
         />
       )}
     </View>
@@ -156,8 +143,7 @@ const ITEM_SIZE = (width - SPACING * (COLUMN_COUNT + 1)) / COLUMN_COUNT;
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    width: '100%',
+    width: '100%', // ✅ CHANGED: Removed flex: 1
   },
   header: {
     flexDirection: 'row',
@@ -167,6 +153,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#334155',
     marginBottom: 16,
     paddingBottom: 0,
+    paddingHorizontal: 16, // ✅ ADDED: Padding for header
   },
   tabsContainer: {
     flexDirection: 'row',
@@ -210,17 +197,18 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
   gridContent: {
-    paddingHorizontal: 2,
+    paddingHorizontal: 1, // ✅ CHANGED: Minimal padding
   },
   columnWrapper: {
-    gap: 2,
-    marginBottom: 2,
+    justifyContent: 'flex-start', // ✅ ADDED: Align items properly
+    gap: 1, // ✅ CHANGED: Smaller gap
+    marginBottom: 1, // ✅ CHANGED: Smaller gap
   },
   itemWrapper: {
-    width: ITEM_SIZE,
+    width: ITEM_SIZE, // ✅ Fixed width per item
+    height: ITEM_SIZE, // ✅ ADDED: Fixed height per item
   },
   emptyContainer: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 80,

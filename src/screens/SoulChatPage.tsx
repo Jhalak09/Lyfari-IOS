@@ -1,4 +1,4 @@
-// src/screens/SoulChatPage.tsx (React Native - Mobile Optimized)
+// src/screens/SoulChatPage.tsx (React Native - Mobile Optimized with WORKING notification marking)
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
@@ -18,6 +18,8 @@ import SoulChatArea from '../components/Soulchat/SoulChatArea';
 import NewChatModal from '../components/Soulchat/NewChatModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Navbar from '../components/layout/Navbar';
+import { useFocusEffect } from '@react-navigation/native';
+import { useNotificationsContext } from '../contexts/NotificationsContext';
 
 // ✅ Same Types as Next.js
 type SoulConversation = {
@@ -54,7 +56,9 @@ type SoulMeta = {
 };
 
 const SoulChatPage: React.FC = () => {
-  // ✅ ALL STATE HOOKS FIRST (Before any conditions/logic)
+  const { markThreadAsRead, refreshThreadCounts } = useNotificationsContext();
+
+  // ✅ ALL STATE HOOKS FIRST
   const [conversations, setConversations] = useState<SoulConversation[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<SoulMessage[]>([]);
@@ -68,18 +72,26 @@ const SoulChatPage: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
   const [pinnedChats, setPinnedChats] = useState<string[]>([]);
-  const [showChatArea, setShowChatArea] = useState(false); // ✅ Mobile view state
+  const [showChatArea, setShowChatArea] = useState(false);
 
   // ✅ ALL REFS
   const inputRef = useRef<TextInput>(null);
   const messagesEndRef = useRef<View>(null);
   const socketRef = useRef<Socket | null>(null);
 
+  // ✅ Refresh thread counts when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 Soul Chat screen focused - refreshing thread counts');
+      refreshThreadCounts();
+    }, [refreshThreadCounts])
+  );
+
   // ✅ ALL CALLBACKS
   const handleChatCreated = useCallback(
     async (conversationId: number) => {
       setSelectedChatId(conversationId.toString());
-      setShowChatArea(true); // ✅ Show chat area on mobile
+      setShowChatArea(true);
       try {
         const token = await AsyncStorage.getItem('token');
         if (!token) return;
@@ -279,7 +291,7 @@ const SoulChatPage: React.FC = () => {
               .join('')
           );
           const payload = JSON.parse(jsonPayload);
-          
+
           setCurrentUserId(
             payload.userId?.toString() ||
               payload.sub?.toString() ||
@@ -369,11 +381,6 @@ const SoulChatPage: React.FC = () => {
             );
 
             setConversations(transformedConversations);
-
-            // ✅ Don't auto-select on mobile
-            // if (!selectedChatId && transformedConversations.length > 0) {
-            //   setSelectedChatId(transformedConversations[0].id);
-            // }
           }
         }
       } catch (error) {
@@ -390,6 +397,7 @@ const SoulChatPage: React.FC = () => {
     loadConversations();
   }, [pinnedChats]);
 
+  // ✅ CRITICAL FIX: Mark thread as read when loading chat
   useEffect(() => {
     if (!selectedChatId) return;
 
@@ -447,7 +455,12 @@ const SoulChatPage: React.FC = () => {
 
             setMessages(transformedMessages);
           }
-        }
+
+          // ✅ CRITICAL: Mark this thread as read
+          console.log(`📖 Marking Soul Chat thread ${selectedChatId} as read`);
+if (selectedChatId) {
+  await markThreadAsRead('SOUL_CHAT', parseInt(selectedChatId));
+}        }
       } catch (error) {
         console.error('Failed to load chat:', error);
         Toast.show({ type: 'error', text1: 'Failed to load chat messages' });
@@ -457,7 +470,7 @@ const SoulChatPage: React.FC = () => {
     }
 
     loadChat();
-  }, [selectedChatId]);
+  }, [selectedChatId, markThreadAsRead]); // ✅ Added markThreadAsRead dependency
 
   useEffect(() => {
     async function setupWebSocket() {
@@ -691,11 +704,11 @@ const SoulChatPage: React.FC = () => {
 
   const handleSelectConversation = (chatId: string) => {
     setSelectedChatId(chatId);
-    setShowChatArea(true); // ✅ Show chat area on mobile
+    setShowChatArea(true);
   };
 
   const handleBackToConversations = () => {
-    setShowChatArea(false); // ✅ Back to list
+    setShowChatArea(false);
     setSelectedChatId(null);
   };
 
@@ -732,9 +745,7 @@ const SoulChatPage: React.FC = () => {
         />
       </View>
 
-      {/* ✅ Show conversations OR chat area (Instagram-style) */}
       {!showChatArea ? (
-        // Conversations List View
         <>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>🌟 Soul Chat</Text>
@@ -750,13 +761,12 @@ const SoulChatPage: React.FC = () => {
           <SoulConversationsSidebar
             conversations={conversations}
             selectedChatId={selectedChatId}
-            setSelectedChatId={handleSelectConversation} // ✅ Updated
+            setSelectedChatId={handleSelectConversation}
             pinnedChats={pinnedChats}
             onNewChatClick={() => setIsNewChatModalOpen(true)}
           />
         </>
       ) : (
-        // Chat Area View with Back Button
         <>
           <TouchableOpacity
             style={styles.backButton}
